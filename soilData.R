@@ -24,6 +24,7 @@ frog<-fill(frog, 'Frog ID', .direction = "down")
 ##################################################################################################
 #wet season data cleaning
 dataWet<- dataWet|>
+  subset(!is.na(`Soil sample`)) |>
   transform(`# mollusks` = as.numeric(`# mollusks`),
          `Soil sample` = as.factor(`Soil sample`)
          )|>
@@ -35,6 +36,7 @@ dataWetWide <- dataWet |> pivot_wider(id_cols=`Point #`,
 ##################################################################################################
 #dry season cleaning
 dataDry<- dataDry|>
+  subset(!is.na(`Point #`))|>
   transform(`# mollusks` = as.numeric(`# mollusks`),
             `Soil sample` = as.factor(`Soil sample`)
   )|>
@@ -42,7 +44,7 @@ dataDry<- dataDry|>
 #pivotWide for dry season just like wet season
 dataDryWide <- dataDry |> pivot_wider(id_cols=`Point #`,
                                       names_from = `Soil sample`, 
-                                      values_from = c(`% SM`,`pH`,`% OM`,`EC`))
+                                      values_from = c(`% soil moisture`,`pH`,`% OM`,`EC`))
 ##################################################################################################
 #frog data cleaning
 frogClean<- frog|> 
@@ -58,35 +60,44 @@ frogClean<- frog|>
             `# burrows` = ifelse(is.na(`# burrows`), 0, `# burrows`))
 frogWide<-frogClean|>pivot_wider(id_cols = `Frog ID`,
                                  names_from = `Soil sample`, 
-                                 values_from = c(`Soil pen`, `# burrows`))
+                                 values_from = c(`Soil pen`, `# burrows`, `# mollusks`))
 ##################################################################################################
-#ggpairs plot for dataWide
+#ggpairs plot for wet data
 ggpairs(dataWetWide[,c("% SM_V", "% SM_P", "% SM_N", "% SM_E", "% SM_B")])
 ggpairs(dataWetWide[, c("pH_V", "pH_P", "pH_N", "pH_E", "pH_B" )])
 ggpairs(dataWetWide[, c("EC_V", "EC_P", "EC_N", "EC_E", "EC_B" )])
 ggpairs(dataWetWide[, c("% OM_V", "% OM_P", "% OM_N", "% OM_E", "% OM_B" )])
+#ggparis for dry data
+ggpairs(dataDryWide[, c("pH_V", "pH_P", "pH_N", "pH_E", "pH_B" )])
+ggpairs(dataDryWide[, c("EC_V", "EC_P", "EC_N", "EC_E", "EC_B" )])
+ggpairs(dataDryWide[, c("% soil moisture_V", "% soil moisture_P", "% soil moisture_N", "% soil moisture_E", "% soil moisture_B" )])
+ggpairs(dataDryWide[, c("% OM_V", "% OM_P", "% OM_N", "% OM_E", "% OM_B" )])
+#ggpairs for frog data
+ggpairs(frogWide[, c("Soil pen_V", "Soil pen_F", "Soil pen_N", "Soil pen_E", "Soil pen_B" )])
+ggpairs(frogWide[, c("# burrows_V", "# burrows_F", "# burrows_N", "# burrows_E", "# burrows_B" )])
+ggpairs(frogWide[, c("# mollusks_V", "# mollusks_F", "# mollusks_N", "# mollusks_E", "# mollusks_B" )])
 ##################################################################################################
-plot(data$`Soil sample`, data$`% SM`)
-plot(data$`Soil sample`, data$`# mollusks`)
-plot(data$`Soil sample`, data$`ph`)
-plot(data$`Soil sample`, data$`Fern Density`)
-plot(data$`Soil sample`, data$`EC`)
-plot(data$`Soil sample`, data$`Fern Density`)
-prop.table(table(data$`Soil sample`, data$`Fern Density`))
-prop.table(table(data$`Soil sample`))
-plot(data$`% SM`, data$EC)
-mod1<-lm(data$`EC`~data$`% SM`)
+plot(dataWet$`Soil sample`, dataWet$`% SM`)
+plot(dataWet$`Soil sample`, dataWet$`# mollusks`)
+plot(dataWet$`Soil sample`, dataWet$`ph`)
+plot(dataWet$`Soil sample`, dataWet$`Fern Density`)
+plot(dataWet$`Soil sample`, dataWet$`EC`)
+plot(dataWet$`Soil sample`, dataWet$`Fern Density`)
+prop.table(table(dataWet$`Soil sample`, dataWet$`Fern Density`))
+prop.table(table(dataWet$`Soil sample`))
+plot(dataWet$`% SM`, data$EC)
+mod1<-lm(dataWet$`EC`~dataWet$`% SM`)
 abline(mod1)
 
-
+#gg boxplot
+ggplot(dataWet, aes(x=`Soil sample`, y=`% SM`, fill=`Soil sample`))+
+  geom_boxplot(alpha=0.65)+
+  labs(title="Soil Mositure by sample type(Wet Season)",
+       x= "Soil Sample Type",
+       y="% Soil Mositure")
 #does the presence of ferns affect microhabitat characteristics such as soil char, number of molllusk
 #and number of burrows, as well as soil parameters.
-mod1<-lm(`% SM` ~ `Soil sample`, data=data)
+mod1<-lm(`% SM` ~ `Soil sample`, data=dataWet)
 summary(mod1)
-mod2<-lm(`% OM` ~ `Soil sample`, data=data)
-summary(mod2)
-
-mod1<-lm(`% SM` ~ `Soil sample`, data=dataAgg)
-summary(mod1)
-mod2<-lm(`% OM` ~ `Soil sample`, data=dataAgg)
+mod2<-lm(`% OM` ~ `Soil sample`, data=dataWet)
 summary(mod2)
