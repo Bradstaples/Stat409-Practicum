@@ -77,7 +77,8 @@ ggpairs(frogWide[, c("Soil pen_V", "Soil pen_F", "Soil pen_N", "Soil pen_E", "So
 ggpairs(frogWide[, c("# burrows_V", "# burrows_F", "# burrows_N", "# burrows_E", "# burrows_B" )])
 ggpairs(frogWide[, c("# mollusks_V", "# mollusks_F", "# mollusks_N", "# mollusks_E", "# mollusks_B" )])
 ##################################################################################################
-plot(dataWet$`Soil sample`, dataWet$`% SM`)
+plot(dataWet$`Soil sample`, dataWet$`% SM`, 
+     main="Soil comparisons of Soil Moisture %", xlab-"Sample Region", ylab="Moisture %")
 plot(dataWet$`Soil sample`, dataWet$`# mollusks`)
 plot(dataWet$`Soil sample`, dataWet$`ph`)
 plot(dataWet$`Soil sample`, dataWet$`Fern Density`)
