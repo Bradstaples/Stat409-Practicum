@@ -48,15 +48,13 @@ dataDryWide <- dataDry |> pivot_wider(id_cols=`Point #`,
 ##################################################################################################
 #frog data cleaning
 frogClean<- frog|> 
-  transform(`Soil sample` = ifelse(grepl("-R1", `Frog ID`, "R1"),
-                            ifelse(grepl("-R2", `Frog ID`, "R2"), as.character(`Soil sample`))),) |>         
-  #subset(!grepl("R1|R2", `Frog ID`)) |>
-  transform(`# mollusks` = as.numeric(`# mollusks`),
-            `Soil sample` = as.factor(`Soil sample`),
+  transform(`Soil sample` = ifelse(grepl("-R1", `Frog ID`), "R1",
+                                   ifelse(grepl("-R2", `Frog ID`), "R2", as.character(`Soil sample`))),
+            
+            `# mollusks` = as.numeric(`# mollusks`),
             `# burrows` = as.numeric(`# burrows`),
             `Soil pen` = as.numeric(`Soil pen`)
-            
-  )|>
+  ) |>
   transform(`Frog ID` = gsub("-R1|-R2", "", `Frog ID`, ignore.case = TRUE),
             `# mollusks` = ifelse(is.na(`# mollusks`), 0, `# mollusks`),
             `Soil pen` = ifelse(is.na(`Soil pen`), 0, `Soil pen`),
