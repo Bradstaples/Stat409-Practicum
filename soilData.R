@@ -48,34 +48,44 @@ dataDryWide <- dataDry |> pivot_wider(id_cols=`Point #`,
 ##################################################################################################
 #frog data cleaning
 frogClean<- frog|> 
-  subset(!grepl("R1|R2", `Frog ID`)) |>
+  transform(`Soil sample` = ifelse(grepl("-R1", `Frog ID`, "R1"),
+                            ifelse(grepl("-R2", `Frog ID`, "R2"), as.character(`Soil sample`))),) |>         
+  #subset(!grepl("R1|R2", `Frog ID`)) |>
   transform(`# mollusks` = as.numeric(`# mollusks`),
             `Soil sample` = as.factor(`Soil sample`),
             `# burrows` = as.numeric(`# burrows`),
             `Soil pen` = as.numeric(`Soil pen`)
             
   )|>
-  transform(`# mollusks` = ifelse(is.na(`# mollusks`), 0, `# mollusks`),
+  transform(`Frog ID` = gsub("-R1|-R2", "", `Frog ID`, ignore.case = TRUE),
+            `# mollusks` = ifelse(is.na(`# mollusks`), 0, `# mollusks`),
             `Soil pen` = ifelse(is.na(`Soil pen`), 0, `Soil pen`),
             `# burrows` = ifelse(is.na(`# burrows`), 0, `# burrows`))
+
+
 frogWide<-frogClean|>pivot_wider(id_cols = `Frog ID`,
                                  names_from = `Soil sample`, 
                                  values_from = c(`Soil pen`, `# burrows`, `# mollusks`))
 ##################################################################################################
 #ggpairs plot for wet data
 ggpairs(dataWetWide[,c("% SM_V", "% SM_P", "% SM_N", "% SM_E", "% SM_B")])
-ggpairs(dataWetWide[, c("pH_V", "pH_P", "pH_N", "pH_E", "pH_B" )])
+ggpairs(dataWetWide[, c("pH_V", "pH_P", "pH_N", "pH_E", "pH_B" )], 
+        title = "pH comparisons of soil samples in wet season")
 ggpairs(dataWetWide[, c("EC_V", "EC_P", "EC_N", "EC_E", "EC_B" )])
 ggpairs(dataWetWide[, c("% OM_V", "% OM_P", "% OM_N", "% OM_E", "% OM_B" )])
 #ggparis for dry data
-ggpairs(dataDryWide[, c("pH_V", "pH_P", "pH_N", "pH_E", "pH_B" )])
+ggpairs(dataDryWide[, c("pH_V", "pH_P", "pH_N", "pH_E", "pH_B" )],
+        title = "pH comparisons of soil samples in dry season")
 ggpairs(dataDryWide[, c("EC_V", "EC_P", "EC_N", "EC_E", "EC_B" )])
 ggpairs(dataDryWide[, c("% soil moisture_V", "% soil moisture_P", "% soil moisture_N", "% soil moisture_E", "% soil moisture_B" )])
 ggpairs(dataDryWide[, c("% OM_V", "% OM_P", "% OM_N", "% OM_E", "% OM_B" )])
 #ggpairs for frog data
-ggpairs(frogWide[, c("Soil pen_V", "Soil pen_F", "Soil pen_N", "Soil pen_E", "Soil pen_B" )])
-ggpairs(frogWide[, c("# burrows_V", "# burrows_F", "# burrows_N", "# burrows_E", "# burrows_B" )])
-ggpairs(frogWide[, c("# mollusks_V", "# mollusks_F", "# mollusks_N", "# mollusks_E", "# mollusks_B" )])
+ggpairs(frogWide[, c("Soil pen_V", "Soil pen_F", "Soil pen_N", "Soil pen_E", "Soil pen_B", 
+                     "Soil pen_R1", "Soil pen_R2" )])
+ggpairs(frogWide[, c("# burrows_V", "# burrows_F", "# burrows_N", "# burrows_E", "# burrows_B",
+                     "# burrows_R1", "# burrows_R2")])
+ggpairs(frogWide[, c("# mollusks_V", "# mollusks_F", "# mollusks_N", "# mollusks_E", "# mollusks_B",
+                     "# mollusks_R1", "# mollusks_R2")])
 ##################################################################################################
 plot(dataWet$`Soil sample`, dataWet$`% SM`, 
      main="Soil comparisons of Soil Moisture %", xlab-"Sample Region", ylab="Moisture %")
@@ -86,7 +96,7 @@ plot(dataWet$`Soil sample`, dataWet$`EC`)
 plot(dataWet$`Soil sample`, dataWet$`Fern Density`)
 prop.table(table(dataWet$`Soil sample`, dataWet$`Fern Density`))
 prop.table(table(dataWet$`Soil sample`))
-plot(dataWet$`% SM`, data$EC)
+plot(dataWet$`% SM`, dataWet$`EC`)
 mod1<-lm(dataWet$`EC`~dataWet$`% SM`)
 abline(mod1)
 
