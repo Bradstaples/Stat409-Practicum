@@ -399,6 +399,14 @@ validateModel <- function(model) {
   #Check Confidence Intervals
   print("Confidence Intervals:")
   print(confint(model))
+  
+  #fitted vs residual plot
+  plot(fitted_values, residuals, main = "Fitted vs Residuals", xlab = "Fitted Values", ylab = "Residuals")
+  abline(h = 0, col = "red")
+  
+  #qqplot
+  qqnorm(residuals, main = "QQ Plot of Residuals")
+  qqline(residuals, col = "red")
 }
 
 ##stepwise model selection
