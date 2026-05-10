@@ -26,13 +26,20 @@ frog$`Frog ID`[frog$`Frog ID` == ""] <- NA
 frog<-fill(frog, 'Frog ID', .direction = "down")
 ###################################################################################################
 ####################### wet season data cleaning #########################################
-dataWet<- dataWet|>
+dataWet <- dataWet |>
   mutate(FernPresence = as.factor(ifelse(`Soil sample` %in% c("B", "E"), 1, 0))) |>
   subset(!is.na(`Soil sample`)) |>
-  transform(`# mollusks` = as.numeric(`# mollusks`),
-         `Soil sample` = as.factor(`Soil sample`)
-         )|>
-  transform(`# mollusks` = ifelse(is.na(`# mollusks`), 0, `# mollusks`)) |> 
+  mutate(
+    `# mollusks` = as.numeric(`# mollusks`),
+    `Soil sample` = as.character(`Soil sample`)
+  ) |>
+  mutate(
+    `# mollusks` = case_when(
+      `Soil sample` %in% c("P", "F") ~ NA_real_, 
+      is.na(`# mollusks`) ~ 0,                   
+      TRUE ~ `# mollusks`
+    )
+  ) |> 
   mutate(`Soil sample` = case_when(
     `Soil sample` == "B" ~ "Base",
     `Soil sample` == "E" ~ "Edge",
@@ -40,27 +47,44 @@ dataWet<- dataWet|>
     `Soil sample` == "P" ~ "Point",
     `Soil sample` == "V" ~ "Veg",
     TRUE ~ `Soil sample` 
-  ))
-#use pivot_wider to make rows based on each point #and columns based on soil sample, with values as % SM
-dataWetWide <- dataWet |> pivot_wider(id_cols=`Point #`,
-                                names_from = `Soil sample`, 
-                                values_from = c(`% SM`,`pH`,`% OM`,`EC`))
-#pivot_longer on soil properties for graphing 
+  )) |>
+  mutate(`Soil sample` = as.factor(`Soil sample`))
+
+# pivot_wider (Added values_fn = mean to prevent list-columns!)
+dataWetWide <- dataWet |> 
+  pivot_wider(
+    id_cols = `Point #`,
+    names_from = `Soil sample`, 
+    values_from = c(`% SM`, `pH`, `% OM`, `EC`),
+    values_fn = mean
+  )
+
+# pivot_longer
 dataWetLong <- dataWet |>
-  pivot_longer(cols = c("% SM", "pH", "% OM", "EC"), 
-               names_to = "Soil_Property", 
-               values_to = "Value")
+  pivot_longer(
+    cols = c("% SM", "pH", "% OM", "EC"), 
+    names_to = "Soil_Property", 
+    values_to = "Value"
+  )
 ##################################################################################################
 ######################################### dry season cleaning ####################################
 dataDry <- dataDry |> rename(`% SM` = `% soil moisture`)
-dataDry<- dataDry|>
+
+dataDry <- dataDry |>
   mutate(FernPresence = as.factor(ifelse(`Soil sample` %in% c("B", "E"), 1, 0))) |>
-  subset(!is.na(`Point #`))|>
-  transform(`# mollusks` = as.numeric(`# mollusks`),
-            `Soil sample` = as.factor(`Soil sample`),
-            `Point #` = as.numeric(`Point #`)
-  )|>
-  transform(`# mollusks` = ifelse(is.na(`# mollusks`), 0, `# mollusks`))|> 
+  subset(!is.na(`Point #`)) |>
+  mutate(
+    `# mollusks` = as.numeric(`# mollusks`),
+    `Soil sample` = as.character(`Soil sample`),
+    `Point #` = as.numeric(`Point #`)
+  ) |>
+  mutate(
+    `# mollusks` = case_when(
+      `Soil sample` %in% c("P", "F") ~ NA_real_,
+      is.na(`# mollusks`) ~ 0,
+      TRUE ~ `# mollusks`
+    )
+  ) |> 
   mutate(`Soil sample` = case_when(
     `Soil sample` == "B" ~ "Base",
     `Soil sample` == "E" ~ "Edge",
@@ -68,30 +92,67 @@ dataDry<- dataDry|>
     `Soil sample` == "P" ~ "Point",
     `Soil sample` == "V" ~ "Veg",
     TRUE ~ `Soil sample` 
-  ))
-#pivotWide for dry season just like wet season
-dataDryWide <- dataDry |> pivot_wider(id_cols=`Point #`,
-                                      names_from = `Soil sample`, 
-                                      values_from = c(`% SM`,`pH`,`% OM`,`EC`))
-#pivot_longer on soil properties to help with plotting
+  )) |>
+  mutate(`Soil sample` = as.factor(`Soil sample`))
+
+# pivot_wider (Added values_fn = mean)
+dataDryWide <- dataDry |> 
+  pivot_wider(
+    id_cols = `Point #`,
+    names_from = `Soil sample`, 
+    values_from = c(`% SM`, `pH`, `% OM`, `EC`),
+    values_fn = mean
+  )
+
+# pivot_longer
 dataDryLong <- dataDry |>
-  pivot_longer(cols = c("% SM", "pH", "% OM", "EC"), 
-               names_to = "Soil_Property", 
-               values_to = "Value")
+  pivot_longer(
+    cols = c("% SM", "pH", "% OM", "EC"), 
+    names_to = "Soil_Property", 
+    values_to = "Value"
+  )
+##################################################################################################
+############################       binding seasons datasets          #############################
+dataAll <- bind_rows(
+  dataWet |> mutate(Season = "Wet"),
+  dataDry |> mutate(Season = "Dry")
+)
+
+# pivot to longboi for graphs and stuff
+dataAllLong <- dataAll |>
+  pivot_longer(
+    cols = c("% SM", "pH", "% OM", "EC"), 
+    names_to = "Soil_Property", 
+    values_to = "Value"
+  )
+
 ##################################################################################################
 ################################## frog data cleaning     #####################################
-frogClean<- frog|>
+frogClean <- frog |>
   mutate(FernPresence = as.factor(ifelse(`Soil sample` %in% c("B", "E"), 1, 0))) |>
   transform(`Soil sample` = ifelse(grepl("-R1", `Frog ID`), "R1",
-                            ifelse(grepl("-R2", `Frog ID`), "R2", as.character(`Soil sample`))),
-            `# mollusks` = as.numeric(`# mollusks`),
-            `# burrows` = as.numeric(`# burrows`),
-            `Soil pen` = as.numeric(`Soil pen`)
+                                   ifelse(grepl("-R2", `Frog ID`), "R2", as.character(`Soil sample`)))
   ) |>
-  transform(`Frog ID` = gsub("-R1|-R2", "", `Frog ID`, ignore.case = TRUE),
-            `# mollusks` = ifelse(is.na(`# mollusks`), 0, `# mollusks`),
-            `Soil pen` = ifelse(is.na(`Soil pen`), 0, `Soil pen`),
-            `# burrows` = ifelse(is.na(`# burrows`), 0, `# burrows`))|> 
+  mutate(
+    `# mollusks` = as.numeric(`# mollusks`),
+    `# burrows` = as.numeric(`# burrows`),
+    `Soil pen` = as.numeric(`Soil pen`)) |>
+  mutate(
+    `# mollusks` = case_when(
+      `Soil sample` %in% c("P", "F") ~ NA_real_,
+      is.na(`# mollusks`) ~ 0,
+      TRUE ~ `# mollusks`
+    ),
+    `# burrows`= case_when(
+      `Soil sample` =="F" ~ NA_real_,
+      is.na(`# burrows`) ~ 0,
+      TRUE ~ `# burrows`
+    ),
+    `Soil pen` = case_when(
+      `Soil sample` == "F" ~ NA_real_,
+      TRUE ~ `Soil pen`
+    )
+  ) |> 
   mutate(`Soil sample` = case_when(
     `Soil sample` == "B" ~ "Base",
     `Soil sample` == "E" ~ "Edge",
@@ -102,24 +163,16 @@ frogClean<- frog|>
     `Soil sample` == "R2" ~ "Random 2",
     TRUE ~ `Soil sample` 
   ))
-
+#pivot_wider 
 frogWide<-frogClean|>pivot_wider(id_cols = `Frog ID`,
                                  names_from = `Soil sample`, 
                                  values_from = c(`Soil pen`, `# burrows`, `# mollusks`),
                                  values_fn = mean)
-
+#pivot_longer for graphing
 frogLong<-frogClean|>pivot_longer(cols = c(`Soil pen`, `# burrows`, `# mollusks`), 
                              names_to = "Variable", 
                              values_to = "Value")
-##################################################################################################
-#binding seasons datasets
-dataAll<- bind_rows(dataWet |> mutate(Season = "Wet"),
-                dataDry |> mutate(Season = "Dry"))
-#pivot to longboi for graphs and stuff
-dataAllLong <- dataAll |>
-  pivot_longer(cols = c("% SM", "pH", "% OM", "EC"), 
-               names_to = "Soil_Property", 
-               values_to = "Value")
+
 ##################################################################################################
 #ggpairs plot for wet data
 ggpairs(dataWetWide[,c("% SM_Veg", "% SM_Point", "% SM_Non-veg", "% SM_Edge", "% SM_Base")])
@@ -136,12 +189,12 @@ ggpairs(dataDryWide[, c("% SM_Veg", "% SM_Point", "% SM_Non-veg", "% SM_Edge", "
 ggpairs(dataDryWide[, c("% OM_Veg", "% OM_Point", "% OM_Non-veg", "% OM_Edge", "% OM_Base" )])
 ##################################################################################################
 #ggpairs for frog data
-ggpairs(frogWide[, c("Soil pen_Veg", "Soil pen_Frog", "Soil pen_Non-veg", "Soil pen_Edge", "Soil pen_Base", 
-                     "Soil pen_Random 1", "Soil pen_Random 2" )])
-ggpairs(frogWide[, c("# burrows_Veg", "# burrows_Frog", "# burrows_Non-veg", "# burrows_Edge", "# burrows_Base",
-                     "# burrows_Random 1", "# burrows_Random 2")])
-ggpairs(frogWide[, c("# mollusks_Veg", "# mollusks_Frog", "# mollusks_Non-veg", "# mollusks_Edge", "# mollusks_Base",
-                     "# mollusks_Random 1", "# mollusks_Random 2")])
+#ggpairs(frogWide[, c("Soil pen_Veg", "Soil pen_Non-veg", "Soil pen_Edge", "Soil pen_Base", 
+#                     "Soil pen_Random 1", "Soil pen_Random 2" )])
+#ggpairs(frogWide[, c("# burrows_Veg", "# burrows_Non-veg", "# burrows_Edge", "# burrows_Base",
+#                     "# burrows_Random 1", "# burrows_Random 2")])
+#ggpairs(frogWide[, c("# mollusks_Veg", "# mollusks_Non-veg", "# mollusks_Edge", "# mollusks_Base",
+#                     "# mollusks_Random 1", "# mollusks_Random 2")])
 ##################################################################################################
 ##########################   WET SEASON GRAPHS               ####################################
 #ggplot comparing soil properties between soil samples in wet season
@@ -169,8 +222,8 @@ ggplot(dataWet, aes(x=`Soil sample`, y=`% SM`, fill=`Soil sample`))+
 dataWet|>
   select(`Point #`, `Soil sample`, `% SM`, pH, EC, `% OM`) |>
   pivot_longer(cols=c(pH, EC, `% OM`), names_to = "Variable", values_to = "Values") |>
-               ggplot(aes(x= `% SM`, y= Values, color=`Soil sample`))+
-               geom_point()+geom_smooth(method=lm, se=F)+facet_wrap(~Variable, scales="free_y", ncol=1)
+  ggplot(aes(x= `% SM`, y= Values, color=`Soil sample`))+
+  geom_point()+geom_smooth(method=lm, se=F)+facet_wrap(~Variable, scales="free_y", ncol=1)
 #everything vs OM
 dataWet|>
   select(`Point #`, `Soil sample`, `% OM`, pH, EC, `% SM`) |>
@@ -194,6 +247,11 @@ dataWet|>
   select(`Point #`, `Soil sample`, `Fern Density`, pH, EC, `% OM`, `% SM`) |>
   pivot_longer(cols=c(pH, EC, `% OM`, `% SM`), names_to = "Variable", values_to = "Values") |>
   ggplot(aes(x= `Fern Density`, y= Values, color=`Soil sample`))+
+  geom_point()+geom_smooth(method="lm", se=F)+facet_wrap(~Variable, scales="free_y", ncol=1)
+dataWet|>
+  select(`Point #`, `Soil sample`, `# mollusks`, pH, EC, `% OM`, `% SM`) |>
+  pivot_longer(cols=c(pH, EC, `% OM`, `% SM`), names_to = "Variable", values_to = "Values") |>
+  ggplot(aes(x= `# mollusks`, y= Values, color=`Soil sample`))+
   geom_point()+geom_smooth(method="lm", se=F)+facet_wrap(~Variable, scales="free_y", ncol=1)
 ###################################################################################################
 ####################     DRY SEASON GRAPHS     ##########################################
@@ -242,6 +300,12 @@ dataDry|>
   pivot_longer(cols=c(EC, `% OM`, `% SM`), names_to = "Variable", values_to = "Values") |>
   ggplot(aes(x= `pH`, y= Values, color=`Soil sample`))+
   geom_point()+geom_smooth(method="lm", se=F)+facet_wrap(~Variable, scales="free_y", ncol=1)
+#everything vs # mollusks
+dataDry|>
+  select(`Point #`, `Soil sample`, `# mollusks`, pH, EC, `% OM`, `% SM`) |>
+  pivot_longer(cols=c(pH, EC, `% OM`, `% SM`), names_to = "Variable", values_to = "Values") |>
+  ggplot(aes(x= `# mollusks`, y= Values, color=`Soil sample`))+
+  geom_point()+geom_smooth(method="lm", se=F)+facet_wrap(~Variable, scales="free_y", ncol=1)
 
 ################################################################################################
 ########   SEASON COMPARISON GRAPHS   ###########################################################
@@ -255,20 +319,24 @@ dataAllLong|>
        x= "Season",
        y="Value")
 ##############################################################################################
-############################FROG GRAPHS########################################################
-ggplot(frogLong, aes(x = `Soil sample`, y = Value, fill = `Soil sample`)) +
+############################      FROG GRAPHS    #############################################
+frogLong |>
+  filter(`Soil sample` != "Frog") |> 
+  ggplot(aes(x = `Soil sample`, y = Value, fill = `Soil sample`)) +
   geom_boxplot(alpha = 0.6, outlier.shape = NA) + 
-  # put dots on the graph for the actual counts for each sample, with some jitter to avoid overlap
-  geom_jitter(width = 0.15, alpha = 0.5, size = 1.5, color = "darkgray") +
+  geom_jitter(width = 0.015, alpha = 0.5, size = 1.5, color = "darkgray") +
   facet_wrap(~Variable, scales = "free_y", ncol = 1) +
   theme_minimal() +
   labs(title = "How Microhabitat Drives Soil Hardness and Fauna",
        x = "Microhabitat Type (Base, Edge, etc.)",
-       y = "Measured Value")
+       y = "Measured Value") +
+  theme(legend.position = "none")
 #probabilty graph of finding a burrow
 frogClean |>
-  mutate(Has_Burrow = ifelse(`# burrows` > 0, "Present", "Absent")) |>
-  ggplot(aes(x = `Soil sample`, fill = Has_Burrow)) +
+  filter(`Soil sample` != "Frog", !is.na(`# burrows`),
+         `Soil sample` != "Edge") |> 
+  mutate(Burrow = ifelse(`# burrows` > 0, "Present", "Absent")) |>
+  ggplot(aes(x = `Soil sample`, fill = Burrow)) +
   geom_bar(position = "fill", color = "black", alpha = 0.8) +
   scale_y_continuous(labels = scales::percent) +
   theme_minimal() +
@@ -278,18 +346,30 @@ frogClean |>
        y = "Percentage of Samples")
 #soil graph 
 frogClean |>
+  filter(`Soil sample` != "Frog") |> 
   pivot_longer(cols = c(`# burrows`, `# mollusks`), 
                names_to = "Animal", 
                values_to = "Count") |>
   ggplot(aes(x = `Soil pen`, y = Count, color = `Soil sample`)) +
   geom_jitter(width = 0.05, height = 0.1, alpha = 0.7, size = 2) +
-  # Use the Poisson curve designed for count data!
   geom_smooth(method = "glm", method.args = list(family = "poisson"), se = FALSE) +
   facet_wrap(~Animal, scales = "free_y", ncol = 1) +
   theme_minimal() +
   labs(title = "Does Soil Hardness Restrict Burrowers and Mollusks?",
        x = "Soil Penetration (Hardness)",
        y = "Count per Sample")
+#graph comparing fern presence and soil pen
+frogClean |>
+  filter(`Soil sample` != "Frog") |>
+  ggplot(aes(x = `Soil sample`, y = `Soil pen`, fill = `Soil sample`)) +
+  geom_boxplot(alpha = 0.6, outlier.shape = NA) +
+  geom_jitter(width = 0.1, alpha = 0.5, size = 2, color = "darkgray") +
+  theme_minimal() +
+  scale_fill_manual(values = c("0" = "#d3d3d3", "1" = "#2ca25f")) +
+  labs(title = "Does Fern Presence Affect Soil Hardness?",
+       x = "Fern Presence (0 = Absent, 1 = Present)",
+       y = "Soil Penetration (Hardness)") +
+  theme(legend.position = "none")
 ##################################################################################################
 ##################################################################################################
 #########################  MODELING AND TESTING  #################################################
@@ -298,24 +378,42 @@ frogClean |>
 #and number of burrows, as well as soil parameters.
 
 ##stepwise model selection
-fullModel<-lm(`% SM`~`Soil sample`*Season+`pH`+`% OM`+`EC`, data=dataAll)
-nullModel<-lm(`% SM`~1, data=dataAll)
-stepwiseModel<-step(nullModel, scope=list(lower=nullModel, upper=fullModel), direction="both")
-summary(stepwiseModel)
+dataStep<- dataAll|>
+  select(`% SM`, `Soil sample`, Season, pH, `% OM`, EC, `# mollusks`)|>
+  drop_na()
+nullModel<-lm(`% SM`~1, data=dataStep)
+#SOil Moisture  
+fullModel1<-lm(`% SM`~`Soil sample`*Season+`Season` +`pH`+`% OM`+`EC`+`# mollusks`, data=dataStep)
+fullModel2<-lm(`% SM`~`Soil sample`+`Season` +`pH`+`% OM`+`EC`+`# mollusks`, data=dataStep)
+`% OM`
+stepwiseModel1<-step(nullModel, scope=list(lower=nullModel, upper=fullModel), direction="forward")
+stepwiseModel2<-step(nullModel, scope=list(lower=nullModel, upper=fullModel), direction="forward")
+summary(stepwiseModel1)
+summary(stepwiseModel2)
+
+#Organic Matter
+fullModel1<-lm(`% OM`~`Soil sample`*Season+`Season` +`pH`++`EC`+`# mollusks`, data=dataStep)
+fullModel2<-lm(`% OM`~`Soil sample`+`Season` +`pH`+`% OM`+`EC`+`# mollusks`, data=dataStep)
+nullModel<-lm(`% OM`~1, data=dataStep)
+stepwiseModel1<-step(nullModel, scope=list(lower=nullModel, upper=fullModel), direction="forward")
+stepwiseModel2<-step(nullModel, scope=list(lower=nullModel, upper=fullModel), direction="forward")
+summary(stepwiseModel1)
+summary(stepwiseModel2)
+
 ################  Wet Season Models ###################### 
-modWetSM<- lm(`% SM`~`Soil sample`+`% OM`+pH+EC, data=dataWet)
+modWetSM<- lm(`% SM`~`Soil sample`+`% OM`+pH+EC+`# mollusks`, data=dataWet)
 summary(modWetSM)
-modWetOM<- lm(`% OM`~`Soil sample`+`% SM`+pH+EC, data=dataWet)
+modWetOM<- lm(`% OM`~`Soil sample`+`% SM`+pH+EC+`# mollusks`, data=dataWet)
 summary(modWetOM)
 ############## Dry Season Models ####################### 
-modDrySM<- lm(`% SM`~`Soil sample`+`% OM`+pH+EC, data=dataWet)
+modDrySM<- lm(`% SM`~`Soil sample`+`% OM`+pH+EC+`# mollusks`, data=dataWet)
 summary(modDrySM)
-modDryOM<- lm(`% OM`~`Soil sample`+`% SM`+pH+EC, data=dataWet)
+modDryOM<- lm(`% OM`~`Soil sample`+`% SM`+pH+EC+`# mollusks`, data=dataWet)
 summary(modDryOM)
 ################  Both Season Models ####################
-modAll1<- lm(`% SM`~`Soil sample`*Season+`% OM`, data=dataAll)
+modAll1<- lm(`% SM`~`Soil sample`*Season+`% OM`+pH+EC+`# mollusks`, data=dataAll)
 summary(modAll1)
-modAll2<- lm(`% SM`~`Soil sample`*Season+`pH`, data=dataAll)
+modAll2<- lm(`% OM`~`Soil sample`*Season+`% SM`+pH+EC+`# mollusks`, data=dataAll)
 summary(modAll2)
 
 ##### froggie based models
