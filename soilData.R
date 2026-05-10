@@ -4,6 +4,8 @@ library(GGally)
 library(leaps)
 library(car)
 library(lmtest)
+library(sjPlot)
+library(emmeans)
 ##################################################################################################
 drySoil<-read.csv("DrySeasonRandomSoil_2025-1.csv", check.names = FALSE)
 drySeason<-read.csv("DrySeasonRandomHab_2025-1.csv", skip=1, check.names = FALSE)
@@ -313,7 +315,7 @@ dataDry|>
 dataAllLong|>
   ggplot(aes(x=Season, y=Value, fill=Season))+
   geom_boxplot(alpha=0.65)+
-  facet_wrap(~interaction(Soil_Property, `Soil sample`), scales = "free_y")+
+  facet_grid(Soil_Property ~ `Soil sample`, scales = "free_y") +
   theme_minimal()+
   labs(title="Seasonal shifts in soil properties by soil sample",
        x= "Season",
@@ -370,57 +372,137 @@ frogClean |>
        x = "Fern Presence (0 = Absent, 1 = Present)",
        y = "Soil Penetration (Hardness)") +
   theme(legend.position = "none")
-##################################################################################################
+
 ##################################################################################################
 #########################  MODELING AND TESTING  #################################################
 ##################################################################################################
 #does the presence of ferns affect microhabitat characteristics such as soil char, number of molllusk
 #and number of burrows, as well as soil parameters.
+####### Validation testing function #######
+validateModel <- function(model) {
+  # Check for multicollinearity
+  print("Variance Inflation Factors:")
+  print(vif(model))
+  
+  # Check for autocorrelation
+  print("Durbin-Watson Test:")
+  print(dwtest(model))
+  
+  # Check for homoscedasticity
+  fitted_values <- model$fitted.values
+  residuals <- model$residuals
+  group <- fitted_values > median(fitted_values)
+  
+  print("Variance Test for Homoscedasticity:")
+  print(var.test(residuals[group], residuals[!group]))
+  
+  #Check Confidence Intervals
+  print("Confidence Intervals:")
+  print(confint(model))
+}
 
 ##stepwise model selection
 dataStep<- dataAll|>
   select(`% SM`, `Soil sample`, Season, pH, `% OM`, EC, `# mollusks`)|>
   drop_na()
-nullModel<-lm(`% SM`~1, data=dataStep)
+
+
 #SOil Moisture  
 fullModel1<-lm(`% SM`~`Soil sample`*Season+`Season` +`pH`+`% OM`+`EC`+`# mollusks`, data=dataStep)
 fullModel2<-lm(`% SM`~`Soil sample`+`Season` +`pH`+`% OM`+`EC`+`# mollusks`, data=dataStep)
-`% OM`
-stepwiseModel1<-step(nullModel, scope=list(lower=nullModel, upper=fullModel), direction="forward")
-stepwiseModel2<-step(nullModel, scope=list(lower=nullModel, upper=fullModel), direction="forward")
+nullModel1<-lm(`% SM`~1, data=dataStep)
+stepwiseModel1<-step(nullModel1, scope=list(lower=nullModel1, upper=fullModel1), direction="forward")
+stepwiseModel2<-step(nullModel1, scope=list(lower=nullModel1, upper=fullModel2), direction="forward")
 summary(stepwiseModel1)
 summary(stepwiseModel2)
 
 #Organic Matter
-fullModel1<-lm(`% OM`~`Soil sample`*Season+`Season` +`pH`++`EC`+`# mollusks`, data=dataStep)
-fullModel2<-lm(`% OM`~`Soil sample`+`Season` +`pH`+`% OM`+`EC`+`# mollusks`, data=dataStep)
-nullModel<-lm(`% OM`~1, data=dataStep)
-stepwiseModel1<-step(nullModel, scope=list(lower=nullModel, upper=fullModel), direction="forward")
-stepwiseModel2<-step(nullModel, scope=list(lower=nullModel, upper=fullModel), direction="forward")
+fullModel3<-lm(`% OM`~`Soil sample`*Season+`Season` +`pH`+`% SM`+`EC`+`# mollusks`, data=dataStep)
+fullModel4<-lm(`% OM`~`Soil sample`+`Season` +`pH`+`% SM`+`EC`+`# mollusks`, data=dataStep)
+nullModel2<-lm(`% OM`~1, data=dataStep)
+stepwiseModel1<-step(nullModel2, scope=list(lower=nullModel2, upper=fullModel3), direction="forward")
+stepwiseModel2<-step(nullModel2, scope=list(lower=nullModel2, upper=fullModel4), direction="forward")
 summary(stepwiseModel1)
 summary(stepwiseModel2)
 
-################  Wet Season Models ###################### 
-modWetSM<- lm(`% SM`~`Soil sample`+`% OM`+pH+EC+`# mollusks`, data=dataWet)
+##################################################################################################
+################  Wet Season Models w/soil sample ###################### 
+modWetSM<- lm(`% SM`~`Soil sample`+`% OM`+pH+EC+`# mollusks`+`Fern Density`, data=dataWet)
 summary(modWetSM)
-modWetOM<- lm(`% OM`~`Soil sample`+`% SM`+pH+EC+`# mollusks`, data=dataWet)
+modWetOM<- lm(`% OM`~`Soil sample`+`% SM`+pH+EC+`# mollusks`+`Fern Density`, data=dataWet)
 summary(modWetOM)
+modWetFern<- lm(`Fern Density`~`Soil sample`+`% SM`+`% OM`+pH+EC+`# mollusks`, data=dataWet)
+summary(modWetFern)
+
+#cValidation testing
+validateModel(modWetSM)
+validateModel(modWetOM)
+validateModel(modWetFern)
+
+#confint plots
+plot_model(modWetSM,show.values = TRUE, value.offset = .3, title = "Predictors of Soil Moisture (Wet Season)")
+plot_model(modWetOM, show.values = TRUE, value.offset = .3, title = "Predictors of Organic Matter (Wet Season)")
+
+#pairwise comparisons of soil sample types with emmeans
+emmeans(modWetSM, pairwise ~ `Soil sample`)
+emmeans(modWetOM, pairwise ~ `Soil sample`)
+
+##################################################################################################
+################## Wet Season models w/ fern presence #####################
+modWetSMFern<- lm(`% SM`~FernPresence+`% OM`+pH+EC+`# mollusks`, data=dataWet)
+summary(modWetSMFern)
+modWetOMFern<- lm(`% OM`~FernPresence+`% SM`+pH+EC+`# mollusks`, data=dataWet)
+summary(modWetOMFern)
+modWetFernFern<- lm(`Fern Density`~`% SM`+`% OM`+pH+EC+`# mollusks`, data=dataWet)
+summary(modWetFernFern)
+
+#validation testing
+validateModel(modWetSMFern)
+validateModel(modWetOMFern)
+validateModel(modWetFernFern)
+
+#confint plots
+plot_model(modWetSMFern,show.values = TRUE, value.offset = .3, title = "Predictors of Soil Moisture (Wet Season, Fern Presence)")
+plot_model(modWetOMFern, show.values = TRUE, value.offset = .3, title = "Predictors of Organic Matter (Wet Season, Fern Presence)")
+plot_model(modWetFernFern, show.values = TRUE, value.offset = .3, title = "Predictors of Fern Density (Wet Season, Fern Presence)")
+
+
+##################################################################################################
 ############## Dry Season Models ####################### 
-modDrySM<- lm(`% SM`~`Soil sample`+`% OM`+pH+EC+`# mollusks`, data=dataWet)
+modDrySM<- lm(`% SM`~`Soil sample`+`% OM`+pH+EC+`# mollusks`, data=dataDry)
 summary(modDrySM)
-modDryOM<- lm(`% OM`~`Soil sample`+`% SM`+pH+EC+`# mollusks`, data=dataWet)
+modDryOM<- lm(`% OM`~`Soil sample`+`% SM`+pH+EC+`# mollusks`, data=dataDry)
 summary(modDryOM)
+
+##################################################################################################
 ################  Both Season Models ####################
 modAll1<- lm(`% SM`~`Soil sample`*Season+`% OM`+pH+EC+`# mollusks`, data=dataAll)
 summary(modAll1)
 modAll2<- lm(`% OM`~`Soil sample`*Season+`% SM`+pH+EC+`# mollusks`, data=dataAll)
 summary(modAll2)
 
-##### froggie based models
-modFrog1<- glm(`# mollusks` ~ `Soil sample`, data=frogClean, family = "poisson")
+##################################################################################################
+################ froggie based models ################
+modFrog1<- glm(`# mollusks` ~ `Soil sample`+`# burrows`, data=frogClean, family = "poisson")
 summary(modFrog1)
 modFrog2<- glm(`# burrows` ~ `Soil sample`, data=frogClean, family = "poisson")
 summary(modFrog2)
 modFrog3<- lm(`Soil pen` ~ `Soil sample`, data=frogClean)
 summary(modFrog3)
 
+#validation function for poisson models
+validatePoissonModel <- function(model) {
+  # Check for overdispersion
+  dispersion <- sum(residuals(model, type = "pearson")^2) / model$df.residual
+  print(paste("Dispersion:", dispersion))
+  
+  # Check for zero-inflation
+  zero_count <- sum(residuals(model, type = "response") == 0)
+  total_count <- length(residuals(model, type = "response"))
+  print(paste("Zero-inflation:", zero_count / total_count))
+  
+  # Check for multicollinearity
+  print("Variance Inflation Factors:")
+  print(vif(model))
+}
+validatePoissonModel(modFrog1)
