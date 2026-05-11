@@ -6,6 +6,8 @@ library(car)
 library(lmtest)
 library(sjPlot)
 library(emmeans)
+library(sf)
+library(btb)
 ##################################################################################################
 drySoil<-read.csv("DrySeasonRandomSoil_2025-1.csv", check.names = FALSE)
 drySeason<-read.csv("DrySeasonRandomHab_2025-1.csv", skip=1, check.names = FALSE)
@@ -255,6 +257,120 @@ dataWet|>
   pivot_longer(cols=c(pH, EC, `% OM`, `% SM`), names_to = "Variable", values_to = "Values") |>
   ggplot(aes(x= `# mollusks`, y= Values, color=`Soil sample`))+
   geom_point()+geom_smooth(method="lm", se=F)+facet_wrap(~Variable, scales="free_y", ncol=1)
+############ ############ ############ Wet Season Spatial Graphing ############ ############ ############ 
+dataWetSF <- st_as_sf(dataWet, 
+                      coords = c("Longitude", "Latitude"), 
+                      crs = 4326) %>% 
+  st_transform(crs = 2154)
+plot(dataWetSF$geometry)
+
+dataWetSFM <- btb_add_centroids(dataWetSF, 
+                                iCellSize = 200)
+############## ORganic Matter ############## ############## 
+centroValuesOM <- dataWetSFM %>%
+  st_drop_geometry() %>%
+  group_by(x_centro, y_centro) %>%
+  summarise(MeanOM = mean(X..OM, na.rm = TRUE), .groups = "drop")
+
+gridValuesOM <- btb_ptsToGrid(centroValuesOM, 
+                             sEPSG = 2154, 
+                             iCellSize = 200)
+mf_map(x = gridValuesOM, 
+       type = "choro", 
+       var = "MeanOM",        
+       breaks = "quantile", 
+       nbreaks = 5, 
+       lwd = 1, 
+       leg_val_rnd = 1,
+       leg_title = "Mean OM")
+############## ############## Fern Denisty map ############## ##############
+centroValuesFD <- dataWetSFM %>%
+  st_drop_geometry() %>%
+  group_by(x_centro, y_centro) %>%
+  summarise(MeanFD = mean(Fern.Density, na.rm = TRUE), .groups = "drop")
+
+gridValuesFD <- btb_ptsToGrid(centroValuesFD, 
+                               sEPSG = 2154, 
+                               iCellSize = 200)
+
+mf_map(x = gridValuesFD, 
+       type = "choro", 
+       var = "MeanFD",        
+       breaks = "quantile", 
+       nbreaks = 5, 
+       lwd = 1, 
+       leg_val_rnd = 1,
+       leg_title = "Mean Fern Density")
+############## ############## Soil Moisture map ############## ##############
+centroValuesSM <- dataWetSFM %>%
+  st_drop_geometry() %>%
+  group_by(x_centro, y_centro) %>%
+  summarise(MeanSM = mean(X..SM, na.rm = TRUE), .groups = "drop")
+
+gridValuesSM <- btb_ptsToGrid(centroValuesSM, 
+                               sEPSG = 2154, 
+                               iCellSize = 200)
+mf_map(x = gridValuesSM, 
+       type = "choro", 
+       var = "MeanSM",        
+       breaks = "quantile", 
+       nbreaks = 5, 
+       lwd = 1, 
+       leg_val_rnd = 1,
+       leg_title = "Mean Soil Moisture")
+############## ############## ph map ############## ##############
+centroValuesPH <- dataWetSFM %>%
+  st_drop_geometry() %>%
+  group_by(x_centro, y_centro) %>%
+  summarise(MeanPH = mean(pH, na.rm = TRUE), .groups = "drop")
+
+gridValuesPH <- btb_ptsToGrid(centroValuesPH, 
+                               sEPSG = 2154, 
+                               iCellSize = 200)
+mf_map(x = gridValuesPH, 
+       type = "choro", 
+       var = "MeanPH",        
+       breaks = "quantile", 
+       nbreaks = 5, 
+       lwd = 1, 
+       leg_val_rnd = 1,
+       leg_title = "Mean pH")
+
+############## ############## EC map ############## ##############
+centroValuesEC <- dataWetSFM %>%
+  st_drop_geometry() %>%
+  group_by(x_centro, y_centro) %>%
+  summarise(MeanEC = mean(EC, na.rm = TRUE), .groups = "drop")
+
+gridValuesEC <- btb_ptsToGrid(centroValuesEC, 
+                               sEPSG = 2154, 
+                               iCellSize = 200)
+mf_map(x = gridValuesEC, 
+       type = "choro", 
+       var = "MeanEC",        
+       breaks = "quantile", 
+       nbreaks = 5, 
+       lwd = 1, 
+       leg_val_rnd = 1,
+       leg_title = "Mean EC")
+
+############## ############## mollusks map ############## ##############
+centroValuesMollusks <- dataWetSFM %>%
+  st_drop_geometry() %>%
+  filter(Soil.sample %in% c("Edge", "Veg", "Non-veg")) %>%
+  group_by(x_centro, y_centro) %>%
+  summarise(MeanMollusks = mean(X..mollusks, na.rm = TRUE), .groups = "drop")
+gridValuesMollusks <- btb_ptsToGrid(centroValuesMollusks, 
+                               sEPSG = 2154, 
+                               iCellSize = 200)
+mf_map(x = gridValuesMollusks, 
+       type = "choro", 
+       var = "MeanMollusks",        
+       breaks = "quantile", 
+       nbreaks = 5, 
+       lwd = 1, 
+       leg_val_rnd = 1,
+       leg_title = "Mean Mollusks")
 ###################################################################################################
 ####################     DRY SEASON GRAPHS     ##########################################
 #ggplot comparing soil properties between soil samples in wet season
@@ -308,6 +424,79 @@ dataDry|>
   pivot_longer(cols=c(pH, EC, `% OM`, `% SM`), names_to = "Variable", values_to = "Values") |>
   ggplot(aes(x= `# mollusks`, y= Values, color=`Soil sample`))+
   geom_point()+geom_smooth(method="lm", se=F)+facet_wrap(~Variable, scales="free_y", ncol=1)
+############ ############ ############ Wet Season Spatial Graphing ############ ############ ############ 
+dataDrySF <- st_as_sf(dataDry, 
+                      coords = c("Longitude", "Latitude"), 
+                      crs = 4326) %>% 
+  st_transform(crs = 2154)
+plot(dataDrySF$geometry)
+
+dataDrySFM<-btb_add_centroids(dataDrySF, 
+                              iCellSize = 200)
+########  OM SPATIAL MAP  ###########################################################
+centroValuesOM <- dataDrySFM %>%
+  st_drop_geometry() %>%
+  group_by(x_centro, y_centro) %>%
+  summarise(MeanOM = mean(X..OM, na.rm = TRUE), .groups = "drop")
+gridValuesOM <- btb_ptsToGrid(centroValuesOM, 
+                               sEPSG = 2154, 
+                               iCellSize = 200)
+mf_map(x = gridValuesOM, 
+       type = "choro", 
+       var = "MeanOM",        
+       breaks = "quantile", 
+       nbreaks = 5, 
+       lwd = 1, 
+       leg_val_rnd = 1,
+       leg_title = "Mean OM")
+########  SM SPATIAL MAP  ###########################################################
+centroValuesSM <- dataDrySFM %>%
+  st_drop_geometry() %>%
+  group_by(x_centro, y_centro) %>%
+  summarise(MeanSM = mean(X..SM, na.rm = TRUE), .groups = "drop")
+gridValuesSM <- btb_ptsToGrid(centroValuesSM, 
+                               sEPSG = 2154, 
+                               iCellSize = 200)
+mf_map(x = gridValuesSM, 
+       type = "choro", 
+       var = "MeanSM",        
+       breaks = "quantile", 
+       nbreaks = 5, 
+       lwd = 1, 
+       leg_val_rnd = 1,
+       leg_title = "Mean Soil Moisture")
+########  ph SPATIAL MAP  ###########################################################
+centroValuesPH <- dataDrySFM %>%
+  st_drop_geometry() %>%
+  group_by(x_centro, y_centro) %>%
+  summarise(MeanPH = mean(pH, na.rm = TRUE), .groups = "drop")
+gridValuesPH <- btb_ptsToGrid(centroValuesPH, 
+                               sEPSG = 2154, 
+                               iCellSize = 200)
+mf_map(x = gridValuesPH, 
+       type = "choro", 
+       var = "MeanPH",        
+       breaks = "quantile", 
+       nbreaks = 5, 
+       lwd = 1, 
+       leg_val_rnd = 1,
+       leg_title = "Mean pH")
+########  EC SPATIAL MAP  ###########################################################
+centroValuesEC <- dataDrySFM %>%
+  st_drop_geometry() %>%
+  group_by(x_centro, y_centro) %>%
+  summarise(MeanEC = mean(EC, na.rm = TRUE), .groups = "drop")
+gridValuesEC <- btb_ptsToGrid(centroValuesEC, 
+                               sEPSG = 2154, 
+                               iCellSize = 200)
+mf_map(x = gridValuesEC, 
+       type = "choro", 
+       var = "MeanEC",        
+       breaks = "quantile", 
+       nbreaks = 5, 
+       lwd = 1, 
+       leg_val_rnd = 1,
+       leg_title = "Mean EC")
 
 ################################################################################################
 ########   SEASON COMPARISON GRAPHS   ###########################################################
@@ -373,6 +562,55 @@ frogClean |>
        y = "Soil Penetration (Hardness)") +
   theme(legend.position = "none")
 
+############ ############ ############ FROGGO Spatial Graphing ############ ############ ############ 
+#fill longitude and latitude valuesfopr frog data
+frogMap<-fill(frogClean, Longitude, Latitude)
+frogSF <- st_as_sf(frogMap, 
+                      coords = c("Longitude", "Latitude"), 
+                      crs = 4326) %>% 
+  st_transform(crs = 2154)
+plot(frogSF$geometry)
+
+frogSFM<-btb_add_centroids(frogSF, 
+                              iCellSize = 200)
+############################################### FRRRROOOOOG SPATIAL GRPAHING #######################
+####### Spatial graphing of mollusk
+centroValuesMollusks <- frogSFM %>%
+  st_drop_geometry() %>%
+  filter(Soil.sample %in% c("Edge", "Veg", "Non-veg")) %>%
+  mutate(X..mollusks = as.numeric(X..mollusks)) %>%
+  drop_na(X..mollusks) %>%
+  group_by(x_centro, y_centro) %>%
+  summarise(MeanMollusks = mean(X..mollusks, na.rm = TRUE), .groups = "drop")
+gridValuesMollusks <- btb_ptsToGrid(centroValuesMollusks, 
+                               sEPSG = 2154, 
+                               iCellSize = 200)
+mf_map(x = gridValuesMollusks, 
+       type = "choro", 
+       var = "MeanMollusks",        
+       breaks = "quantile", 
+       nbreaks = 5, 
+       lwd = 1, 
+       leg_val_rnd = 1,
+       leg_title = "Mean Mollusks")
+############SPATIAL graping of da burrows
+centroValuesBurrows <- frogSFM %>%
+  st_drop_geometry() %>%
+  mutate(X..burrows = as.numeric(X..burrows)) %>%
+  group_by(x_centro, y_centro) %>%
+  drop_na(X..burrows) %>%
+  summarise(MeanBurrows = mean(X..burrows, na.rm = TRUE), .groups = "drop")
+gridValuesBurrows <- btb_ptsToGrid(centroValuesBurrows, 
+                               sEPSG = 2154, 
+                               iCellSize = 200)
+mf_map(x = gridValuesBurrows, 
+       type = "choro", 
+       var = "MeanBurrows",        
+       breaks = "quantile", 
+       nbreaks = 5, 
+       lwd = 1, 
+       leg_val_rnd = 1,
+       leg_title = "Mean Burrows")
 ##################################################################################################
 #########################  MODELING AND TESTING  #################################################
 ##################################################################################################
@@ -457,11 +695,11 @@ emmeans(modWetOM, pairwise ~ `Soil sample`)
 
 ##################################################################################################
 ################## Wet Season models w/ fern presence #####################
-modWetSMFern<- lm(`% SM`~FernPresence+`% OM`+pH+EC+`# mollusks`, data=dataWet)
+modWetSMFern<- lm(`% SM`~FernPresence+`% OM`+pH+EC, data=dataWet)
 summary(modWetSMFern)
-modWetOMFern<- lm(`% OM`~FernPresence+`% SM`+pH+EC+`# mollusks`, data=dataWet)
+modWetOMFern<- lm(`% OM`~FernPresence+`% SM`+pH+EC, data=dataWet)
 summary(modWetOMFern)
-modWetFernFern<- lm(`Fern Density`~`% SM`+`% OM`+pH+EC+`# mollusks`, data=dataWet)
+modWetFernFern<- lm(`Fern Density`~`% SM`+`% OM`+pH+EC, data=dataWet)
 summary(modWetFernFern)
 
 #validation testing
@@ -474,6 +712,16 @@ plot_model(modWetSMFern,show.values = TRUE, value.offset = .3, title = "Predicto
 plot_model(modWetOMFern, show.values = TRUE, value.offset = .3, title = "Predictors of Organic Matter (Wet Season, Fern Presence)")
 plot_model(modWetFernFern, show.values = TRUE, value.offset = .3, title = "Predictors of Fern Density (Wet Season, Fern Presence)")
 
+##################################################################################################
+################################ Mollusks #################################################
+dataWetMollusk <- dataWet |>
+  filter(`Soil sample` %in% c("Edge", "Veg", "Non-veg"))
+modWetMollusk1<- lm(`% SM`~`Soil sample`+`% OM`+pH+EC, data=dataWetMollusk)
+summary(modWetMollusk1)
+modWetMollusk2<- lm(`% OM`~`Soil sample`+`% OM`+pH+EC, data=dataWetMollusk)
+summary(modWetMollusk2)
+modWetMollusks3<-lm(`# mollusks`~`Soil sample`+`% SM`+`% OM`+pH+EC, data=dataWetMollusk)
+summary(modWetMollusks3)
 
 ##################################################################################################
 ############## Dry Season Models ####################### 
