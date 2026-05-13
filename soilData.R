@@ -8,6 +8,8 @@ library(sjPlot)
 library(emmeans)
 library(sf)
 library(btb)
+library(lme4)
+library(lmerTest)
 ##################################################################################################
 drySoil<-read.csv("DrySeasonRandomSoil_2025-1.csv", check.names = FALSE)
 drySeason<-read.csv("DrySeasonRandomHab_2025-1.csv", skip=1, check.names = FALSE)
@@ -227,13 +229,19 @@ dataWet|>
   select(`Point #`, `Soil sample`, `% SM`, pH, EC, `% OM`) |>
   pivot_longer(cols=c(pH, EC, `% OM`), names_to = "Variable", values_to = "Values") |>
   ggplot(aes(x= `% SM`, y= Values, color=`Soil sample`))+
-  geom_point()+geom_smooth(method=lm, se=F)+facet_wrap(~Variable, scales="free_y", ncol=1)
+  geom_point()+geom_smooth(method=lm, se=F)+facet_wrap(~Variable, scales="free_y", ncol=1)+
+  labs(title="How Soil Moisture Affects Other Soil Properties in the Wet Season",
+       x="% Soil Moisture",
+       y="Value of Other Soil Properties")
 #everything vs OM
 dataWet|>
   select(`Point #`, `Soil sample`, `% OM`, pH, EC, `% SM`) |>
   pivot_longer(cols=c(pH, EC, `% SM`), names_to = "Variable", values_to = "Values") |>
   ggplot(aes(x= `% OM`, y= Values, color=`Soil sample`))+
-  geom_point()+geom_smooth(method="lm", se=F)+facet_wrap(~Variable, scales="free_y", ncol=1)
+  geom_point()+geom_smooth(method="lm", se=F)+facet_wrap(~Variable, scales="free_y", ncol=1)+
+  labs(title="How Organic Matter Affects Other Soil Properties in the Wet Season",
+       x="% Organic Matter",
+       y="Value of Other Soil Properties")
 #everything vs EC
 dataWet|>
   select(`Point #`, `Soil sample`, `EC`, pH, `% OM`, `% SM`) |>
@@ -649,7 +657,7 @@ mf_map(x = gridValuesBurrows,
 #does the presence of ferns affect microhabitat characteristics such as soil char, number of molllusk
 #and number of burrows, as well as soil parameters.
 ####### Validation testing function #######
-validateModel <- function(model) {
+validateModelLM <- function(model) {
   # Check for multicollinearity
   print("Variance Inflation Factors:")
   print(vif(model))
@@ -679,43 +687,48 @@ validateModel <- function(model) {
   qqline(residuals, col = "red")
 }
 
-##stepwise model selection
-dataStep<- dataAll|>
-  select(`% SM`, `Soil sample`, Season, pH, `% OM`, EC, `# mollusks`)|>
-  drop_na()
-
-
-#SOil Moisture  
-fullModel1<-lm(`% SM`~`Soil sample`*Season+`Season` +`pH`+`% OM`+`EC`+`# mollusks`, data=dataStep)
-fullModel2<-lm(`% SM`~`Soil sample`+`Season` +`pH`+`% OM`+`EC`+`# mollusks`, data=dataStep)
-nullModel1<-lm(`% SM`~1, data=dataStep)
-stepwiseModel1<-step(nullModel1, scope=list(lower=nullModel1, upper=fullModel1), direction="forward")
-stepwiseModel2<-step(nullModel1, scope=list(lower=nullModel1, upper=fullModel2), direction="forward")
-summary(stepwiseModel1)
-summary(stepwiseModel2)
-
-#Organic Matter
-fullModel3<-lm(`% OM`~`Soil sample`*Season+`Season` +`pH`+`% SM`+`EC`+`# mollusks`, data=dataStep)
-fullModel4<-lm(`% OM`~`Soil sample`+`Season` +`pH`+`% SM`+`EC`+`# mollusks`, data=dataStep)
-nullModel2<-lm(`% OM`~1, data=dataStep)
-stepwiseModel1<-step(nullModel2, scope=list(lower=nullModel2, upper=fullModel3), direction="forward")
-stepwiseModel2<-step(nullModel2, scope=list(lower=nullModel2, upper=fullModel4), direction="forward")
-summary(stepwiseModel1)
-summary(stepwiseModel2)
+validateModelLMER<- function(model) {
+  # Check for multicollinearity
+  print("Variance Inflation Factors:")
+  print(vif(model))
+  
+  #confidence intervals
+  print("Confidence Intervals:")
+  print(confint(model))
+  
+  # Check for homoscedasticity
+  fitted_values <- fitted(model)
+  residuals <- resid(model)
+  
+  plot(fitted_values, residuals, main = "Fitted vs Residuals", xlab = "Fitted Values", ylab = "Residuals")
+  abline(h = 0, col = "red")
+  
+  # QQ plot of residuals
+  qqnorm(residuals, main = "QQ Plot of Residuals")
+  qqline(residuals, col = "red")
+  
+  #Variance test
+  group <- fitted_values > median(fitted_values)
+  print(var.test(residuals[group], residuals[!group]))
+  #fitted vs residual plot
+  plot(fitted_values, residuals, main = "Fitted vs Residuals", xlab = "Fitted Values", ylab = "Residuals")
+  abline(h = 0, col = "red")
+  }
 
 ##################################################################################################
 ################  Wet Season Models w/soil sample ###################### 
-modWetSM<- lm(`% SM`~`Soil sample`+`% OM`+pH+EC+`# mollusks`+`Fern Density`, data=dataWet)
+
+modWetSM<- lmer(`% SM`~`Soil sample`+`% OM`+pH+EC+`# mollusks`+`Fern Density`+(1|`Point #`), data=dataWet)
 summary(modWetSM)
-modWetOM<- lm(`% OM`~`Soil sample`+`% SM`+pH+EC+`# mollusks`+`Fern Density`, data=dataWet)
+modWetOM<- lmer(`% OM`~`Soil sample`+`% SM`+pH+EC+`# mollusks`+`Fern Density`+(1|`Point #`), data=dataWet)
 summary(modWetOM)
-modWetFern<- lm(`Fern Density`~`Soil sample`+`% SM`+`% OM`+pH+EC+`# mollusks`, data=dataWet)
+modWetFern<- lm(`Fern Density`~`Soil sample`+`% SM`+`% OM`+pH+EC, data=dataWet)
 summary(modWetFern)
 
-#cValidation testing
-validateModel(modWetSM)
-validateModel(modWetOM)
-validateModel(modWetFern)
+#Validation testing
+validateModelLMER(modWetSM)
+validateModelLMER(modWetOM)
+validateModelLM(modWetFern)
 
 #confint plots
 plot_model(modWetSM,show.values = TRUE, value.offset = .3, title = "Predictors of Soil Moisture (Wet Season)")
@@ -725,44 +738,12 @@ plot_model(modWetOM, show.values = TRUE, value.offset = .3, title = "Predictors 
 emmeans(modWetSM, pairwise ~ `Soil sample`)
 emmeans(modWetOM, pairwise ~ `Soil sample`)
 
-
-##################################################################################################
-################## Wet Season models w/ fern presence #####################
-modWetSMFern<- lm(`% SM`~FernPresence+`% OM`+pH+EC, data=dataWet)
-summary(modWetSMFern)
-modWetOMFern<- lm(`% OM`~FernPresence+`% SM`+pH+EC, data=dataWet)
-summary(modWetOMFern)
-modWetFernFern<- lm(`Fern Density`~`% SM`+`% OM`+pH+EC, data=dataWet)
-summary(modWetFernFern)
-
-#validation testing
-validateModel(modWetSMFern)
-validateModel(modWetOMFern)
-validateModel(modWetFernFern)
-
-#confint plots
-plot_model(modWetSMFern,show.values = TRUE, value.offset = .3, title = "Predictors of Soil Moisture (Wet Season, Fern Presence)")
-plot_model(modWetOMFern, show.values = TRUE, value.offset = .3, title = "Predictors of Organic Matter (Wet Season, Fern Presence)")
-plot_model(modWetFernFern, show.values = TRUE, value.offset = .3, title = "Predictors of Fern Density (Wet Season, Fern Presence)")
-
-##################################################################################################
-################################ Mollusks #################################################
-dataWetMollusk <- dataWet |>
-  filter(`Soil sample` %in% c("Edge", "Veg", "Non-veg"))
-modWetMollusk1<- lm(`% SM`~`Soil sample`+`% OM`+pH+EC, data=dataWetMollusk)
-summary(modWetMollusk1)
-modWetMollusk2<- lm(`% OM`~`Soil sample`+`% OM`+pH+EC, data=dataWetMollusk)
-summary(modWetMollusk2)
-modWetMollusks3<-lm(`# mollusks`~`Soil sample`+`% SM`+`% OM`+pH+EC, data=dataWetMollusk)
-summary(modWetMollusks3)
-
-##################################################################################################
 #simple models wet
-modWetSimpleSM<-lm(`% SM`~`Soil sample`, data=dataWet)
+modWetSimpleSM<-lmer(`% SM`~`Soil sample`+(1|`Point #`), data=dataWet)
 summary(modWetSimpleSM)
 emmeans(modWetSimpleSM, pairwise ~ `Soil sample`)
 
-modWetSimpleOM<-lm(`% OM`~`Soil sample`, data=dataWet)
+modWetSimpleOM<-lmer(`% OM`~`Soil sample`+(1|`Point #`), data=dataWet)
 summary(modWetSimpleOM)
 emmeans(modWetSimpleOM, pairwise ~ `Soil sample`)
 
@@ -770,47 +751,76 @@ modWetSimpleFern<-lm(`Fern Density`~`Soil sample`, data=dataWet)
 summary(modWetSimpleFern)
 emmeans(modWetSimpleFern, pairwise ~ `Soil sample`)
 
-modWetSimplePH<-lm(pH~`Soil sample`, data=dataWet)
+modWetSimplePH<-lmer(pH~`Soil sample`+(1|`Point #`), data=dataWet)
 summary(modWetSimplePH)
 emmeans(modWetSimplePH, pairwise ~ `Soil sample`)
 
-modWetSimpleEC<-lm(EC~`Soil sample`, data=dataWet)
+modWetSimpleEC<-lmer(EC~`Soil sample`+(1|`Point #`), data=dataWet)
 summary(modWetSimpleEC)
 emmeans(modWetSimpleEC, pairwise ~ `Soil sample`)
 
-modWetSimpleMollusks<-lm(`# mollusks`~`Soil sample`, data=dataWetMollusk)
-summary(modWetSimpleMollusks)
-emmeans(modWetSimpleMollusks, pairwise ~ `Soil sample`)
+##################################################################################################
+################## Wet Season models w/ fern presence #####################
+modWetSMFern<- lmer(`% SM`~FernPresence+`% OM`+pH+EC+(1|`Point #`), data=dataWet)
+summary(modWetSMFern)
+modWetOMFern<- lmer(`% OM`~FernPresence+`% SM`+pH+EC+(1|`Point #`), data=dataWet)
+summary(modWetOMFern)
+modWetFernFern<- lm(`Fern Density`~`% SM`+`% OM`+pH+EC, data=dataWet)
+summary(modWetFernFern)
+
+#validation testing
+validateModelLMER(modWetSMFern)
+validateModelLMER(modWetOMFern)
+validateModelLM(modWetFernFern)
+
+#confint plots
+plot_model(modWetSMFern,show.values = TRUE, value.offset = .3, title = "Predictors of Soil Moisture (Wet Season, Fern Presence)")
+plot_model(modWetOMFern, show.values = TRUE, value.offset = .3, title = "Predictors of Organic Matter (Wet Season, Fern Presence)")
+plot_model(modWetFernFern, show.values = TRUE, value.offset = .3, title = "Predictors of Fern Density (Wet Season, Fern Presence)")
 
 ##################################################################################################
+################################ Mollusks models that exclude base #################################################
+dataWetMollusk <- dataWet |>
+  filter(`Soil sample` %in% c("Edge", "Veg", "Non-veg"))
+modWetMollusk1<- lmer(`% SM`~`Soil sample`+`% OM`+pH+EC+`# mollusks`+(1|`Point #`), data=dataWetMollusk)
+summary(modWetMollusk1)
+modWetMollusk2<- lmer(`% OM`~`Soil sample`+`% SM`+pH+EC+`# mollusks`+(1|`Point #`), data=dataWetMollusk)
+summary(modWetMollusk2)
+modWetMollusks3<-lmer(`# mollusks`~`Soil sample`+`% SM`+`% OM`+pH+EC+(1|`Point #`), data=dataWetMollusk)
+summary(modWetMollusks3)
+
+modWetSimpleMollusks<-lmer(`# mollusks`~`Soil sample`+(1|`Point #`), data=dataWetMollusk)
+summary(modWetSimpleMollusks)
+emmeans(modWetSimpleMollusks, pairwise ~ `Soil sample`)
+##################################################################################################
 ############## Dry Season Models ####################### 
-modDrySM<- lm(`% SM`~`Soil sample`+`% OM`+pH+EC+`# mollusks`, data=dataDry)
+modDrySM<- lmer(`% SM`~`Soil sample`+`% OM`+pH+EC+`# mollusks`+(1|`Point #`), data=dataDry)
 summary(modDrySM)
-modDryOM<- lm(`% OM`~`Soil sample`+`% SM`+pH+EC+`# mollusks`, data=dataDry)
+modDryOM<- lmer(`% OM`~`Soil sample`+`% SM`+pH+EC+`# mollusks`+(1|`Point #`), data=dataDry)
 summary(modDryOM)
 
 #simple models dry
-modDrySimpleSM<-lm(`% SM`~`Soil sample`, data=dataDry)
+modDrySimpleSM<-lmer(`% SM`~`Soil sample`+(1|`Point #`), data=dataDry)
 summary(modDrySimpleSM)
 emmeans(modDrySimpleSM, pairwise ~ `Soil sample`)
 
-modDrySimpleOM<-lm(`% OM`~`Soil sample`, data=dataDry)
+modDrySimpleOM<-lmer(`% OM`~`Soil sample`+(1|`Point #`), data=dataDry)
 summary(modDrySimpleOM)
 emmeans(modDrySimpleOM, pairwise ~ `Soil sample`)
 
-modDrySimplePH<-lm(pH~`Soil sample`, data=dataDry)
+modDrySimplePH<-lmer(pH~`Soil sample`+(1|`Point #`), data=dataDry)
 summary(modDrySimplePH)
 emmeans(modDrySimplePH, pairwise ~ `Soil sample`)
 
-modDrySimpleEC<-lm(EC~`Soil sample`, data=dataDry)
+modDrySimpleEC<-lmer(EC~`Soil sample`+(1|`Point #`), data=dataDry)
 summary(modDrySimpleEC)
 emmeans(modDrySimpleEC, pairwise ~ `Soil sample`)
 
 ##################################################################################################
 ################  Both Season Models ####################
-modAll1<- lm(`% SM`~`Soil sample`*Season+`% OM`+pH+EC, data=dataAll)
+modAll1<- lmer(`% SM`~`Soil sample`*Season+`% OM`+pH+EC+(1|`Point #`), data=dataAll)
 summary(modAll1)
-modAll2<- lm(`% OM`~`Soil sample`*Season+`% SM`+pH+EC, data=dataAll)
+modAll2<- lmer(`% OM`~`Soil sample`*Season+`% SM`+pH+EC+(1|`Point #`), data=dataAll)
 summary(modAll2)
 
 emmeans(modAll1, pairwise ~ `Soil sample`*Season)
@@ -819,26 +829,45 @@ emmeans(modAll2, pairwise ~ `Soil sample`*Season)
 
 ##################################################################################################
 ################ froggie based models ################
-modFrog1<- glm(`# mollusks` ~ `Soil sample`+`# burrows`, data=frogClean, family = "poisson")
+modFrog1<- glmer(`# mollusks` ~ `Soil sample`+`# burrows`+(1|`Point #`), data=frogClean, family = "poisson")
 summary(modFrog1)
-modFrog2<- glm(`# burrows` ~ `Soil sample`, data=frogClean, family = "poisson")
+modFrog2<- glmer(`# burrows` ~ `Soil sample`+(1|`Point #`), data=frogClean, family = "poisson")
 summary(modFrog2)
-modFrog3<- lm(`Soil pen` ~ `Soil sample`, data=frogClean)
+modFrog3<- lmer(`Soil pen` ~ `Soil sample`+(1|`Point #`), data=frogClean)
 summary(modFrog3)
 
 #validation function for poisson models
 validatePoissonModel <- function(model) {
-  # Check for overdispersion
-  dispersion <- sum(residuals(model, type = "pearson")^2) / model$df.residual
-  print(paste("Dispersion:", dispersion))
+  # 1. Check for overdispersion (Ratio > 1 means overdispersion)
+  pearsonResids <- residuals(model, type = "pearson")
+  residualDf <- df.residual(model)
+  dispersionRatio <- sum(pearsonResids^2) / residualDf
   
-  # Check for zero-inflation
-  zero_count <- sum(residuals(model, type = "response") == 0)
-  total_count <- length(residuals(model, type = "response"))
-  print(paste("Zero-inflation:", zero_count / total_count))
+  print(paste("Dispersion Ratio:", round(dispersionRatio, 3)))
+  if(dispersionRatio > 1.5) {
+    print("Warning: Model is highly overdispersed. Consider Negative Binomial.")
+  }
   
-  # Check for multicollinearity
-  print("Variance Inflation Factors:")
+  # 2. Check for zero-inflation (Observed zeros vs. mathematically Expected zeros)
+  # Extract the actual raw counts you fed into the model
+  actualData <- model.response(model.frame(model)) 
+  
+  observedZeros <- sum(actualData == 0)
+  totalCount <- length(actualData)
+  
+  # Poisson math: the expected probability of getting a zero is e^(-lambda)
+  expectedZeros <- sum(exp(-fitted(model)))
+  
+  print("--- Zero Inflation Check ---")
+  print(paste("Observed Zeros:", observedZeros))
+  print(paste("Expected Zeros:", round(expectedZeros, 1)))
+  
+  zeroRatio <- observedZeros / expectedZeros
+  print(paste("Zero-Inflation Ratio (Obs/Exp):", round(zeroRatio, 3)))
+  
+  # 3. Check for multicollinearity
+  print("--- Variance Inflation Factors ---")
   print(vif(model))
 }
 validatePoissonModel(modFrog1)
+
