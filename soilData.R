@@ -283,6 +283,38 @@ mf_map(x = gridValuesOM,
        lwd = 1, 
        leg_val_rnd = 1,
        leg_title = "Mean OM")
+
+ptsDensity <- dataWetSFM%>%
+  st_drop_geometry() %>%
+  select(x = x_centro, y = y_centro, MeanOM = X..OM) %>%
+  drop_na(MeanOM)
+
+ptsDensity$sample_density <- 1L
+
+smoothDensity <- btb_smooth(
+  pts = ptsDensity,
+  sEPSG = 2154,
+  iBandwidth = 400,   
+  iCellSize = 10     
+)
+mf_map(x = smoothDensity,
+       type = "choro",
+       var = "sample_density",
+       breaks = "quantile",
+       nbreaks = 5,
+       border = NA,          
+       leg_val_rnd = 1,
+       leg_title = "Sampling Density")
+
+smoothDensity <- smoothDensity %>% mutate(meanOM=MeanOM/sample_density)
+
+mf_map(x = smoothDensity,
+       type = "choro",
+       var="meanOM",
+       breaks = "quantile",
+       nbreaks = 5,
+       border = NA,
+       leg_val_rnd = 1)
 ############## ############## Fern Denisty map ############## ##############
 centroValuesFD <- dataWetSFM %>%
   st_drop_geometry() %>%
@@ -693,6 +725,7 @@ plot_model(modWetOM, show.values = TRUE, value.offset = .3, title = "Predictors 
 emmeans(modWetSM, pairwise ~ `Soil sample`)
 emmeans(modWetOM, pairwise ~ `Soil sample`)
 
+
 ##################################################################################################
 ################## Wet Season models w/ fern presence #####################
 modWetSMFern<- lm(`% SM`~FernPresence+`% OM`+pH+EC, data=dataWet)
@@ -724,18 +757,65 @@ modWetMollusks3<-lm(`# mollusks`~`Soil sample`+`% SM`+`% OM`+pH+EC, data=dataWet
 summary(modWetMollusks3)
 
 ##################################################################################################
+#simple models wet
+modWetSimpleSM<-lm(`% SM`~`Soil sample`, data=dataWet)
+summary(modWetSimpleSM)
+emmeans(modWetSimpleSM, pairwise ~ `Soil sample`)
+
+modWetSimpleOM<-lm(`% OM`~`Soil sample`, data=dataWet)
+summary(modWetSimpleOM)
+emmeans(modWetSimpleOM, pairwise ~ `Soil sample`)
+
+modWetSimpleFern<-lm(`Fern Density`~`Soil sample`, data=dataWet)
+summary(modWetSimpleFern)
+emmeans(modWetSimpleFern, pairwise ~ `Soil sample`)
+
+modWetSimplePH<-lm(pH~`Soil sample`, data=dataWet)
+summary(modWetSimplePH)
+emmeans(modWetSimplePH, pairwise ~ `Soil sample`)
+
+modWetSimpleEC<-lm(EC~`Soil sample`, data=dataWet)
+summary(modWetSimpleEC)
+emmeans(modWetSimpleEC, pairwise ~ `Soil sample`)
+
+modWetSimpleMollusks<-lm(`# mollusks`~`Soil sample`, data=dataWetMollusk)
+summary(modWetSimpleMollusks)
+emmeans(modWetSimpleMollusks, pairwise ~ `Soil sample`)
+
+##################################################################################################
 ############## Dry Season Models ####################### 
 modDrySM<- lm(`% SM`~`Soil sample`+`% OM`+pH+EC+`# mollusks`, data=dataDry)
 summary(modDrySM)
 modDryOM<- lm(`% OM`~`Soil sample`+`% SM`+pH+EC+`# mollusks`, data=dataDry)
 summary(modDryOM)
 
+#simple models dry
+modDrySimpleSM<-lm(`% SM`~`Soil sample`, data=dataDry)
+summary(modDrySimpleSM)
+emmeans(modDrySimpleSM, pairwise ~ `Soil sample`)
+
+modDrySimpleOM<-lm(`% OM`~`Soil sample`, data=dataDry)
+summary(modDrySimpleOM)
+emmeans(modDrySimpleOM, pairwise ~ `Soil sample`)
+
+modDrySimplePH<-lm(pH~`Soil sample`, data=dataDry)
+summary(modDrySimplePH)
+emmeans(modDrySimplePH, pairwise ~ `Soil sample`)
+
+modDrySimpleEC<-lm(EC~`Soil sample`, data=dataDry)
+summary(modDrySimpleEC)
+emmeans(modDrySimpleEC, pairwise ~ `Soil sample`)
+
 ##################################################################################################
 ################  Both Season Models ####################
-modAll1<- lm(`% SM`~`Soil sample`*Season+`% OM`+pH+EC+`# mollusks`, data=dataAll)
+modAll1<- lm(`% SM`~`Soil sample`*Season+`% OM`+pH+EC, data=dataAll)
 summary(modAll1)
-modAll2<- lm(`% OM`~`Soil sample`*Season+`% SM`+pH+EC+`# mollusks`, data=dataAll)
+modAll2<- lm(`% OM`~`Soil sample`*Season+`% SM`+pH+EC, data=dataAll)
 summary(modAll2)
+
+emmeans(modAll1, pairwise ~ `Soil sample`*Season)
+emmeans(modAll2, pairwise ~ `Soil sample`*Season)
+
 
 ##################################################################################################
 ################ froggie based models ################
