@@ -291,7 +291,7 @@ ptsDensity <- dataWetSFM%>%
 ptsDensity$sample_density <- 1L
 
 smoothDensity <- btb_smooth(pts = ptsDensity,sEPSG = 2154,
-  iBandwidth = 450,iCellSize = 50)
+  iBandwidth = 450,iCellSize = 10)
 
 mf_map(x = smoothDensity,type = "choro",var = "sample_density",breaks = "quantile",
        nbreaks = 5,border = NA, leg_val_rnd = 1,leg_title = "Sampling Density")
