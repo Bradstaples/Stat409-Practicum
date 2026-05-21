@@ -255,41 +255,40 @@ dataWet|>
   ggplot(aes(x= `# mollusks`, y= Values, color=`Soil sample`))+
   geom_point()+geom_smooth(method="lm", se=F)+facet_wrap(~Variable, scales="free_y", ncol=1)
 ############ ############ ############ Wet Season Spatial Graphing ############ ############ ############ 
-dataWetSF <- st_as_sf(dataWet, 
+#multi plot initilization for maps
+par(mfrow = c(2, 4), mar = c(1, 1, 2, 1))
+dataWetAggregated <- dataWet %>%
+  group_by(Latitude, Longitude) %>%
+  summarise(
+    meanFern = mean(`Fern Density`, na.rm = TRUE),
+    meanSM = mean(`% SM`, na.rm = TRUE),
+    meanPH = mean(pH, na.rm = TRUE),
+    meanOM = mean(`% OM`, na.rm = TRUE),
+    meanEC = mean(EC, na.rm = TRUE),
+    meanCanopy   = mean(`Canopy cover (%)`, na.rm = TRUE),
+    meanSlope    = mean(`Slope (deg)`, na.rm = TRUE),
+    meanMollusks = mean(`# mollusks`, na.rm = TRUE),
+    .groups = "drop"
+  ) 
+
+dataWetSF <- st_as_sf(dataWetAggregated, 
                       coords = c("Longitude", "Latitude"), 
                       crs = 4326) %>% 
-  st_transform(crs = 32651)
-plot(dataWetSF$geometry)
+  st_transform(crs = 32610)
+#plot(dataWetSF$geometry)
 
 dataWetSFM <- btb_add_centroids(dataWetSF, 
                                 iCellSize = 200)
-#multi plot initilization for maps
-par(mfrow = c(2, 3), mar = c(1, 1, 2, 1))
-############## ############## Fern Denisty map ############## ##############
-centroValuesFD <- dataWetSFM %>%
-  st_drop_geometry() %>%
-  group_by(x_centro, y_centro) %>%
-  summarise(MeanFD = mean(Fern.Density, na.rm = TRUE), .groups = "drop")
-
-gridValuesFD <- btb_ptsToGrid(centroValuesFD, 
-                              sEPSG = 2154, 
-                              iCellSize = 200)
-
-#mf_map(x = gridValuesFD, type = "choro", var = "MeanFD",breaks = "quantile", 
-       #nbreaks = 5,lwd = 1,leg_val_rnd = 1,leg_title = "Mean Fern Density")
-
+################################################################################Fern Density Map
 ptsDensityFern <- dataWetSFM%>%
   st_drop_geometry() %>%
-  select(x = x_centro, y = y_centro, MeanFern = Fern.Density) %>%
+  select(x = x_centro, y = y_centro, MeanFern = meanFern)%>%
   drop_na(MeanFern)
 
 ptsDensityFern$sample_density <- 1L
 
-smoothDensityFern <- btb_smooth(pts = ptsDensityFern,sEPSG = 2154,
+smoothDensityFern <- btb_smooth(pts = ptsDensityFern,sEPSG = 32610,
                                 iBandwidth = 500,iCellSize = 10)
-
-#mf_map(x = smoothDensityFern,type = "choro",var = "sample_density",breaks = "quantile",
-#nbreaks = 5,border = NA, leg_val_rnd = 1,leg_title = "Sampling Density")
 
 smoothDensityFernMean <- smoothDensityFern %>% mutate(meanFern=MeanFern/sample_density)
 smoothDensityFernWGS <- st_transform(smoothDensityFernMean, 4326)
@@ -304,183 +303,163 @@ mf_layout(title = "Smoothed Fern Density",
           arrow = FALSE)
 
 ############## ORganic Matter ############## ############## 
-centroValuesOM <- dataWetSFM %>%
-  st_drop_geometry() %>%
-  group_by(x_centro, y_centro) %>%
-  summarise(MeanOM = mean(X..OM, na.rm = TRUE), .groups = "drop")
 
-gridValuesOM <- btb_ptsToGrid(centroValuesOM, 
-                             sEPSG = 2154, 
-                             iCellSize = 200)
-#mf_map(x = gridValuesOM, type = "choro", var = "MeanOM", breaks = "quantile", 
-       #nbreaks = 5, lwd = 1, leg_val_rnd = 1,
-       #leg_title = "Mean OM")
-
-ptsDensity <- dataWetSFM%>%
+ptsDensityOM <- dataWetSFM%>%
   st_drop_geometry() %>%
-  select(x = x_centro, y = y_centro, MeanOM = X..OM) %>%
+  select(x = x_centro, y = y_centro, MeanOM = meanOM) %>%
   drop_na(MeanOM)
 
-ptsDensity$sample_density <- 1L
+ptsDensityOM$sample_density <- 1L
 
-smoothDensity <- btb_smooth(pts = ptsDensity,sEPSG = 2154,
+smoothDensityOM <- btb_smooth(pts = ptsDensityOM,sEPSG = 32610,
   iBandwidth = 450,iCellSize = 10)
 
-#mf_map(x = smoothDensity,type = "choro",var = "sample_density",breaks = "quantile",
-       #nbreaks = 5,border = NA, leg_val_rnd = 1,leg_title = "Sampling Density")
+smoothDensityMeanOM <- smoothDensityOM %>% mutate(meanOM=MeanOM/sample_density)
+smoothDensityWGSOM <- st_transform(smoothDensityMeanOM, 4326)
 
-smoothDensityMean <- smoothDensity %>% mutate(meanOM=MeanOM/sample_density)
-smoothDensityWGS <- st_transform(smoothDensityMean, 4326)
-
-mf_map(x = smoothDensityWGS,type = "choro",var="meanOM",breaks = "quantile",
+mf_map(x = smoothDensityWGSOM,type = "choro",var="meanOM",breaks = "quantile",
        nbreaks = 5,border = NA,leg_val_rnd = 1,leg_horiz=TRUE)
 
-mf_graticule(x = smoothDensityWGS, add = TRUE, col = "grey0", lty = 2,pos = c("bottom", "left"))
+mf_graticule(x = smoothDensityWGSOM, add = TRUE, col = "grey0", lty = 2,pos = c("bottom", "left"))
 
 mf_layout(title = "Smoothed Organic Matter Density", 
           credits = "Source: dataWet",
           arrow = FALSE)
 
 ############## ############## Soil Moisture map ############## ##############
-centroValuesSM <- dataWetSFM %>%
-  st_drop_geometry() %>%
-  group_by(x_centro, y_centro) %>%
-  summarise(MeanSM = mean(X..SM, na.rm = TRUE), .groups = "drop")
-
-gridValuesSM <- btb_ptsToGrid(centroValuesSM, 
-                               sEPSG = 2154, 
-                               iCellSize = 200)
-#mf_map(x = gridValuesSM,type = "choro", var = "MeanSM",breaks = "quantile", 
-       #nbreaks = 5, lwd = 1, leg_val_rnd = 1,leg_title = "Mean Soil Moisture")
-
 ptsDensitySM <- dataWetSFM%>%
   st_drop_geometry() %>%
-  select(x = x_centro, y = y_centro, meanSM = X..SM) %>%
-  drop_na(meanSM)
+  select(x = x_centro, y = y_centro, MeanSM = meanSM) %>%
+  drop_na(MeanSM)
 
 ptsDensitySM$sample_density <- 1L
 
-smoothDensitySM <- btb_smooth(pts = ptsDensitySM,sEPSG = 2154,
-                            iBandwidth = 500,iCellSize = 10)
+smoothDensitySM <- btb_smooth(pts = ptsDensitySM,sEPSG = 32610,
+                              iBandwidth = 450,iCellSize = 10)
 
-#mf_map(x = smoothDensitySM,type = "choro",var = "sample_density",breaks = "quantile",
-       #nbreaks = 5,border = NA, leg_val_rnd = 1,leg_title = "Sampling Density")
+smoothDensityMeanSM <- smoothDensitySM %>% mutate(meanSM=MeanSM/sample_density)
+smoothDensityWGSSM <- st_transform(smoothDensityMeanSM, 4326)
 
-smoothDensitySMMean <- smoothDensitySM %>% mutate(meanSM=meanSM/sample_density)
-smoothDensitySMWGS <- st_transform(smoothDensitySMMean, 4326)
-
-mf_map(x = smoothDensitySMWGS,type = "choro",var="meanSM",breaks = "quantile",
+mf_map(x = smoothDensityWGSSM,type = "choro",var="meanSM",breaks = "quantile",
        nbreaks = 5,border = NA,leg_val_rnd = 1,leg_horiz=TRUE)
 
-mf_graticule(x = smoothDensityWGS, add = TRUE, col = "grey0", lty = 2,pos = c("bottom", "left"))
+mf_graticule(x = smoothDensityWGSSM, add = TRUE, col = "grey0", lty = 2,pos = c("bottom", "left"))
 
-mf_layout(title = "Smoothed Soil Moisutre Density", 
+mf_layout(title = "Smoothed Soil Moisture Density", 
           credits = "Source: dataWet",
           arrow = FALSE)
 
-
 ############## ############## ph map ############## ##############
-centroValuesPH <- dataWetSFM %>%
-  st_drop_geometry() %>%
-  group_by(x_centro, y_centro) %>%
-  summarise(MeanPH = mean(pH, na.rm = TRUE), .groups = "drop")
-
-gridValuesPH <- btb_ptsToGrid(centroValuesPH, 
-                               sEPSG = 2154, 
-                               iCellSize = 200)
-#mf_map(x = gridValuesPH, type = "choro", var = "MeanPH",breaks = "quantile", 
-       #nbreaks = 5, lwd = 1,leg_val_rnd = 1,leg_title = "Mean pH")
-
 ptsDensityPH <- dataWetSFM%>%
   st_drop_geometry() %>%
-  select(x = x_centro, y = y_centro, meanPH = pH) %>%
-  drop_na(meanPH)
+  select(x = x_centro, y = y_centro, MeanPH = meanPH) %>%
+  drop_na(MeanPH)
 
 ptsDensityPH$sample_density <- 1L
 
-smoothDensityPH <- btb_smooth(pts = ptsDensityPH,sEPSG = 2154,
-                              iBandwidth = 500,iCellSize = 10)
+smoothDensityPH <- btb_smooth(pts = ptsDensityPH,sEPSG = 32610,
+                              iBandwidth = 450,iCellSize = 10)
 
-smoothDensityPHMean <- smoothDensityPH %>% mutate(meanPH=meanPH/sample_density)
-smoothDensityPHWGS <- st_transform(smoothDensityPHMean, 4326)
+smoothDensityMeanPH <- smoothDensityPH %>% mutate(meanPH=MeanPH/sample_density)
+smoothDensityWGSPH <- st_transform(smoothDensityMeanPH, 4326)
 
-mf_map(x = smoothDensityPHWGS,type = "choro",var="meanPH",breaks = "quantile",
+mf_map(x = smoothDensityWGSPH,type = "choro",var="meanPH",breaks = "quantile",
        nbreaks = 5,border = NA,leg_val_rnd = 1,leg_horiz=TRUE)
 
-mf_graticule(x = smoothDensityWGS, add = TRUE, col = "grey0", lty = 2,pos = c("bottom", "left"))
+mf_graticule(x = smoothDensityWGSPH, add = TRUE, col = "grey0", lty = 2,pos = c("bottom", "left"))
 
 mf_layout(title = "Smoothed pH Density", 
           credits = "Source: dataWet",
           arrow = FALSE)
 
 ############## ############## EC map ############## ##############
-centroValuesEC <- dataWetSFM %>%
-  st_drop_geometry() %>%
-  group_by(x_centro, y_centro) %>%
-  summarise(MeanEC = mean(EC, na.rm = TRUE), .groups = "drop")
-
-gridValuesEC <- btb_ptsToGrid(centroValuesEC, 
-                               sEPSG = 2154, 
-                               iCellSize = 200)
-#mf_map(x = gridValuesEC, type = "choro", var = "MeanEC",breaks = "quantile", 
-       #nbreaks = 5, lwd = 1, leg_val_rnd = 1,leg_title = "Mean EC")
-
 ptsDensityEC <- dataWetSFM%>%
   st_drop_geometry() %>%
-  select(x = x_centro, y = y_centro, meanEC = EC) %>%
-  drop_na(meanEC)
+  select(x = x_centro, y = y_centro, MeanEC = meanEC) %>%
+  drop_na(MeanEC)
 
 ptsDensityEC$sample_density <- 1L
 
-smoothDensityEC <- btb_smooth(pts = ptsDensityEC,sEPSG = 2154,
-                              iBandwidth = 500,iCellSize = 10)
+smoothDensityEC <- btb_smooth(pts = ptsDensityEC,sEPSG = 32610,
+                              iBandwidth = 450,iCellSize = 10)
 
-smoothDensityECMean <- smoothDensityEC %>% mutate(meanEC=meanEC/sample_density)
-smoothDensityECWGS <- st_transform(smoothDensityECMean, 4326)
+smoothDensityMeanEC <- smoothDensityEC %>% mutate(meanEC=MeanEC/sample_density)
+smoothDensityWGSEC <- st_transform(smoothDensityMeanEC, 4326)
 
-mf_map(x = smoothDensityECWGS,type = "choro",var="meanEC",breaks = "quantile",
+mf_map(x = smoothDensityWGSEC,type = "choro",var="meanEC",breaks = "quantile",
        nbreaks = 5,border = NA,leg_val_rnd = 1,leg_horiz=TRUE)
 
-mf_graticule(x = smoothDensityWGS, add = TRUE, col = "grey0", lty = 2,pos = c("bottom", "left"))
+mf_graticule(x = smoothDensityWGSEC, add = TRUE, col = "grey0", lty = 2,pos = c("bottom", "left"))
 
-mf_layout(title = "Smoothed EC Density", 
+mf_layout(title = "Smoothed Electric Conductivity Density", 
           credits = "Source: dataWet",
           arrow = FALSE)
 
 
 ############## ############## mollusks map ############## ##############
-centroValuesMollusks <- dataWetSFM %>%
-  st_drop_geometry() %>%
-  filter(Soil.sample %in% c("Edge", "Veg", "Non-veg")) %>%
-  group_by(x_centro, y_centro) %>%
-  summarise(MeanMollusks = mean(X..mollusks, na.rm = TRUE), .groups = "drop")
-gridValuesMollusks <- btb_ptsToGrid(centroValuesMollusks, 
-                               sEPSG = 2154, 
-                               iCellSize = 200)
-#mf_map(x = gridValuesMollusks, type = "choro",var = "MeanMollusks",breaks = "quantile", nbreaks = 5, 
-       #lwd = 1,leg_val_rnd = 1,leg_title = "Mean Mollusks")
-
 ptsDensityMol <- dataWetSFM%>%
   st_drop_geometry() %>%
-  select(x = x_centro, y = y_centro, meanMollusks = X..mollusks) %>%
-  drop_na(meanMollusks)
+  select(x = x_centro, y = y_centro, MeanMollusks = meanMollusks) %>%
+  drop_na(MeanMollusks)
 
 ptsDensityMol$sample_density <- 1L
 
-smoothDensityMol <- btb_smooth(pts = ptsDensityMol,sEPSG = 2154,
-                              iBandwidth = 500,iCellSize = 10)
+smoothDensityMol <- btb_smooth(pts = ptsDensityMol,sEPSG = 32610,
+                              iBandwidth = 450,iCellSize = 10)
 
-smoothDensityMolMean <- smoothDensityMol %>% mutate(meanMollusks=meanMollusks/sample_density)
-smoothDensityMolWGS <- st_transform(smoothDensityMolMean, 4326)
+smoothDensityMeanMol <- smoothDensityMol %>% mutate(meanMol=MeanMollusks/sample_density)
+smoothDensityWGSMol <- st_transform(smoothDensityMeanMol, 4326)
 
-mf_map(x = smoothDensityMolWGS,type = "choro",var="meanMollusks",breaks = "quantile",
+mf_map(x = smoothDensityWGSMol,type = "choro",var="meanMol",breaks = "quantile",
        nbreaks = 5,border = NA,leg_val_rnd = 1,leg_horiz=TRUE)
 
-mf_graticule(x = smoothDensityWGS, add = TRUE, col = "grey0", lty = 2,pos = c("bottom", "left"))
+mf_graticule(x = smoothDensityWGSMol, add = TRUE, col = "grey0", lty = 2,pos = c("bottom", "left"))
 
 mf_layout(title = "Smoothed Mollusks Density", 
           credits = "Source: dataWet",
           arrow = FALSE)
+###################### Canopy COver
+ptsDensityCanopy <- dataWetSFM %>%
+  st_drop_geometry() %>%
+  select(x = x_centro, y = y_centro, Value = meanCanopy) %>%
+  drop_na(Value)
+
+ptsDensityCanopy$sample_density <- 1L
+
+smoothDensityCanopy <- btb_smooth(pts = ptsDensityCanopy, sEPSG = 32610, 
+                                  iBandwidth = 450, iCellSize = 10)
+
+smoothDensityMeanCanopy <- smoothDensityCanopy %>% mutate(FinalEstimate = Value / sample_density)
+smoothDensityWGSCanopy <- st_transform(smoothDensityMeanCanopy, 4326)
+
+mf_map(x = smoothDensityWGSCanopy, type = "choro", var="FinalEstimate", breaks = "quantile",
+       nbreaks = 5, border = NA, leg_val_rnd = 1, leg_horiz=TRUE)
+
+mf_graticule(x = smoothDensityWGSCanopy, add = TRUE, col = "grey0", lty = 2, pos = c("bottom", "left"))
+
+mf_layout(title = "Smoothed Canopy Cover Density", 
+          credits = "Source: dataWet", arrow = FALSE)
+######### Slope 
+ptsDensitySlope <- dataWetSFM %>%
+  st_drop_geometry() %>%
+  select(x = x_centro, y = y_centro, Value = meanSlope) %>%
+  drop_na(Value)
+
+ptsDensitySlope$sample_density <- 1L
+
+smoothDensitySlope <- btb_smooth(pts = ptsDensitySlope, sEPSG = 32610, 
+                                 iBandwidth = 450, iCellSize = 10)
+
+smoothDensityMeanSlope <- smoothDensitySlope %>% mutate(FinalEstimate = Value / sample_density)
+smoothDensityWGSSlope <- st_transform(smoothDensityMeanSlope, 4326)
+
+mf_map(x = smoothDensityWGSSlope, type = "choro", var="FinalEstimate", breaks = "quantile",
+       nbreaks = 5, border = NA, leg_val_rnd = 1, leg_horiz=TRUE)
+
+mf_graticule(x = smoothDensityWGSSlope, add = TRUE, col = "grey0", lty = 2, pos = c("bottom", "left"))
+
+mf_layout(title = "Smoothed Slope Density", 
+          credits = "Source: dataWet", arrow = FALSE)
 
 #####
 par(mfrow = c(1, 1))
@@ -539,79 +518,117 @@ dataDry|>
   ggplot(aes(x= `# mollusks`, y= Values, color=`Soil sample`))+
   geom_point()+geom_smooth(method="lm", se=F)+facet_wrap(~Variable, scales="free_y", ncol=1)
 ############ ############ ############ Wet Season Spatial Graphing ############ ############ ############ 
-dataDrySF <- st_as_sf(dataDry, 
+#Aggregate data
+dataDryAggregated <- dataDry %>%
+  group_by(Latitude, Longitude) %>%
+  summarise(
+    meanSM = mean(`% SM`, na.rm = TRUE),
+    meanPH = mean(pH, na.rm = TRUE),
+    meanOM = mean(`% OM`, na.rm = TRUE),
+    meanEC = mean(EC, na.rm = TRUE),
+    meanCanopy   = mean(`Canopy cover (%)`, na.rm = TRUE),
+    FernIsPresent = ifelse(any(grepl("B|E", `Soil sample`, ignore.case = TRUE)), 1, 0),
+    .groups = "drop"
+  )
+
+
+dataDrySF <- st_as_sf(dataDryAggregated, 
                       coords = c("Longitude", "Latitude"), 
                       crs = 4326) %>% 
-  st_transform(crs = 2154)
-plot(dataDrySF$geometry)
+  st_transform(crs = 32610)
 
 dataDrySFM<-btb_add_centroids(dataDrySF, 
                               iCellSize = 200)
+par(mfrow = c(2, 3), mar = c(1, 1, 2, 1))
 ########  OM SPATIAL MAP  ###########################################################
-centroValuesOM <- dataDrySFM %>%
+ptsDensityOM <- dataDrySFM %>%
   st_drop_geometry() %>%
-  group_by(x_centro, y_centro) %>%
-  summarise(MeanOM = mean(X..OM, na.rm = TRUE), .groups = "drop")
-gridValuesOM <- btb_ptsToGrid(centroValuesOM, 
-                               sEPSG = 2154, 
-                               iCellSize = 200)
-mf_map(x = gridValuesOM, 
-       type = "choro", 
-       var = "MeanOM",        
-       breaks = "quantile", 
-       nbreaks = 5, 
-       lwd = 1, 
-       leg_val_rnd = 1,
-       leg_title = "Mean OM")
-########  SM SPATIAL MAP  ###########################################################
-centroValuesSM <- dataDrySFM %>%
-  st_drop_geometry() %>%
-  group_by(x_centro, y_centro) %>%
-  summarise(MeanSM = mean(X..SM, na.rm = TRUE), .groups = "drop")
-gridValuesSM <- btb_ptsToGrid(centroValuesSM, 
-                               sEPSG = 2154, 
-                               iCellSize = 200)
-mf_map(x = gridValuesSM, 
-       type = "choro", 
-       var = "MeanSM",        
-       breaks = "quantile", 
-       nbreaks = 5, 
-       lwd = 1, 
-       leg_val_rnd = 1,
-       leg_title = "Mean Soil Moisture")
-########  ph SPATIAL MAP  ###########################################################
-centroValuesPH <- dataDrySFM %>%
-  st_drop_geometry() %>%
-  group_by(x_centro, y_centro) %>%
-  summarise(MeanPH = mean(pH, na.rm = TRUE), .groups = "drop")
-gridValuesPH <- btb_ptsToGrid(centroValuesPH, 
-                               sEPSG = 2154, 
-                               iCellSize = 200)
-mf_map(x = gridValuesPH, 
-       type = "choro", 
-       var = "MeanPH",        
-       breaks = "quantile", 
-       nbreaks = 5, 
-       lwd = 1, 
-       leg_val_rnd = 1,
-       leg_title = "Mean pH")
-########  EC SPATIAL MAP  ###########################################################
-centroValuesEC <- dataDrySFM %>%
-  st_drop_geometry() %>%
-  group_by(x_centro, y_centro) %>%
-  summarise(MeanEC = mean(EC, na.rm = TRUE), .groups = "drop")
-gridValuesEC <- btb_ptsToGrid(centroValuesEC, 
-                               sEPSG = 2154, 
-                               iCellSize = 200)
-mf_map(x = gridValuesEC, 
-       type = "choro", 
-       var = "MeanEC",        
-       breaks = "quantile", 
-       nbreaks = 5, 
-       lwd = 1, 
-       leg_val_rnd = 1,
-       leg_title = "Mean EC")
+  select(x = x_centro, y = y_centro, MeanOM = meanOM) %>%
+  drop_na(MeanOM)
 
+ptsDensityOM$sample_density <- 1L
+
+smoothDensityOM <- btb_smooth(pts = ptsDensityOM, sEPSG = 32610, iBandwidth = 450, iCellSize = 10)
+
+smoothDensityMeanOM <- smoothDensityOM %>% mutate(meanOM = MeanOM / sample_density)
+smoothDensityWGSOM <- st_transform(smoothDensityMeanOM, 4326)
+
+mf_map(x = smoothDensityWGSOM, type = "choro", var="meanOM", breaks = "quantile",
+       nbreaks = 5, border = NA, leg_val_rnd = 1, leg_horiz=TRUE)
+mf_graticule(x = smoothDensityWGSOM, add = TRUE, col = "grey0", lty = 2, pos = c("bottom", "left"))
+mf_layout(title = "Smoothed Organic Matter Density", credits = "Source: dataDry", arrow = FALSE)
+########  SM SPATIAL MAP  ###########################################################
+ptsDensitySM <- dataDrySFM %>%
+  st_drop_geometry() %>%
+  select(x = x_centro, y = y_centro, MeanSM = meanSM) %>%
+  drop_na(MeanSM)
+
+ptsDensitySM$sample_density <- 1L
+
+smoothDensitySM <- btb_smooth(pts = ptsDensitySM, sEPSG = 32610, iBandwidth = 450, iCellSize = 10)
+
+smoothDensityMeanSM <- smoothDensitySM %>% mutate(meanSM = MeanSM / sample_density)
+smoothDensityWGSSM <- st_transform(smoothDensityMeanSM, 4326)
+
+mf_map(x = smoothDensityWGSSM, type = "choro", var="meanSM", breaks = "quantile",
+       nbreaks = 5, border = NA, leg_val_rnd = 1, leg_horiz=TRUE)
+mf_graticule(x = smoothDensityWGSSM, add = TRUE, col = "grey0", lty = 2, pos = c("bottom", "left"))
+mf_layout(title = "Smoothed Soil Moisture Density", credits = "Source: dataDry", arrow = FALSE)
+
+########  ph SPATIAL MAP  ###########################################################
+ptsDensityPH <- dataDrySFM %>%
+  st_drop_geometry() %>%
+  select(x = x_centro, y = y_centro, MeanPH = meanPH) %>%
+  drop_na(MeanPH)
+
+ptsDensityPH$sample_density <- 1L
+
+smoothDensityPH <- btb_smooth(pts = ptsDensityPH, sEPSG = 32610, iBandwidth = 450, iCellSize = 10)
+
+smoothDensityMeanPH <- smoothDensityPH %>% mutate(meanPH = MeanPH / sample_density)
+smoothDensityWGSPH <- st_transform(smoothDensityMeanPH, 4326)
+
+mf_map(x = smoothDensityWGSPH, type = "choro", var="meanPH", breaks = "quantile",
+       nbreaks = 5, border = NA, leg_val_rnd = 1, leg_horiz=TRUE)
+mf_graticule(x = smoothDensityWGSPH, add = TRUE, col = "grey0", lty = 2, pos = c("bottom", "left"))
+mf_layout(title = "Smoothed pH Density", credits = "Source: dataDry", arrow = FALSE)
+########  EC SPATIAL MAP  ###########################################################
+ptsDensityEC <- dataDrySFM %>%
+  st_drop_geometry() %>%
+  select(x = x_centro, y = y_centro, MeanEC = meanEC) %>%
+  drop_na(MeanEC)
+
+ptsDensityEC$sample_density <- 1L
+
+smoothDensityEC <- btb_smooth(pts = ptsDensityEC, sEPSG = 32610, iBandwidth = 450, iCellSize = 10)
+
+smoothDensityMeanEC <- smoothDensityEC %>% mutate(meanEC = MeanEC / sample_density)
+smoothDensityWGSEC <- st_transform(smoothDensityMeanEC, 4326)
+
+mf_map(x = smoothDensityWGSEC, type = "choro", var="meanEC", breaks = "quantile",
+       nbreaks = 5, border = NA, leg_val_rnd = 1, leg_horiz=TRUE)
+mf_graticule(x = smoothDensityWGSEC, add = TRUE, col = "grey0", lty = 2, pos = c("bottom", "left"))
+mf_layout(title = "Smoothed EC Density", credits = "Source: dataDry", arrow = FALSE)
+
+##########Canopy Cover
+ptsDensityCanopy <- dataDrySFM %>%
+  st_drop_geometry() %>%
+  select(x = x_centro, y = y_centro, MeanCanopy = meanCanopy) %>%
+  drop_na(MeanCanopy)
+
+ptsDensityCanopy$sample_density <- 1L
+
+smoothDensityCanopy <- btb_smooth(pts = ptsDensityCanopy, sEPSG = 32610, iBandwidth = 450, iCellSize = 10)
+
+smoothDensityMeanCanopy <- smoothDensityCanopy %>% mutate(meanCanopy = MeanCanopy / sample_density)
+smoothDensityWGSCanopy <- st_transform(smoothDensityMeanCanopy, 4326)
+
+mf_map(x = smoothDensityWGSCanopy, type = "choro", var="meanCanopy", breaks = "quantile",
+       nbreaks = 5, border = NA, leg_val_rnd = 1, leg_horiz=TRUE)
+mf_graticule(x = smoothDensityWGSCanopy, add = TRUE, col = "grey0", lty = 2, pos = c("bottom", "left"))
+mf_layout(title = "Smoothed Canopy Cover Density", credits = "Source: dataDry", arrow = FALSE)
+
+par(mfrow = c(1, 1))
 ################################################################################################
 ########   SEASON COMPARISON GRAPHS   ###########################################################
 #GGplot of season shifts in soil properties by soil sample
@@ -623,6 +640,7 @@ dataAllLong|>
   labs(title="Seasonal shifts in soil properties by soil sample",
        x= "Season",
        y="Value")
+
 ##############################################################################################
 ############################      FROG GRAPHS    #############################################
 frogLong |>
@@ -678,53 +696,69 @@ frogClean |>
 
 ############ ############ ############ FROGGO Spatial Graphing ############ ############ ############ 
 #fill longitude and latitude valuesfopr frog data
-frogMap<-fill(frogClean, Longitude, Latitude)
+frogAggregated <- frogClean %>%
+  fill(Longitude, Latitude) %>%
+  group_by(Latitude, Longitude) %>%
+  summarise(
+    MeanMollusks = suppressWarnings(
+      mean(as.numeric(`# mollusks`[`Soil sample` %in% c("Edge", "Veg", "Non-veg")]), na.rm = TRUE)
+    ),
+    MeanBurrows = suppressWarnings(
+      mean(as.numeric(`# burrows`), na.rm = TRUE)
+    ),
+    .groups = "drop"
+  )
+
+frogMap<-fill(frogAggregated, Longitude, Latitude)
 frogSF <- st_as_sf(frogMap, 
                       coords = c("Longitude", "Latitude"), 
                       crs = 4326) %>% 
-  st_transform(crs = 2154)
+  st_transform(crs = 32610)
 plot(frogSF$geometry)
 
 frogSFM<-btb_add_centroids(frogSF, 
                               iCellSize = 200)
+
+par(mfrow = c(2, 2), mar = c(1, 1, 2, 1))
 ############################################### FRRRROOOOOG SPATIAL GRPAHING #######################
 ####### Spatial graphing of mollusk
-centroValuesMollusks <- frogSFM %>%
+ptsDensityMol <- frogSFM %>%
   st_drop_geometry() %>%
-  filter(Soil.sample %in% c("Edge", "Veg", "Non-veg")) %>%
-  mutate(X..mollusks = as.numeric(X..mollusks)) %>%
-  drop_na(X..mollusks) %>%
-  group_by(x_centro, y_centro) %>%
-  summarise(MeanMollusks = mean(X..mollusks, na.rm = TRUE), .groups = "drop")
-gridValuesMollusks <- btb_ptsToGrid(centroValuesMollusks, 
-                               sEPSG = 2154, 
-                               iCellSize = 200)
-mf_map(x = gridValuesMollusks, 
-       type = "choro", 
-       var = "MeanMollusks",        
-       breaks = "quantile", 
-       nbreaks = 5, 
-       lwd = 1, 
-       leg_val_rnd = 1,
-       leg_title = "Mean Mollusks")
+  select(x = x_centro, y = y_centro, MeanMollusks = MeanMollusks) %>%
+  drop_na(MeanMollusks)
+
+ptsDensityMol$sample_density <- 1L
+
+smoothDensityMol <- btb_smooth(pts = ptsDensityMol, sEPSG = 32610, iBandwidth = 450, iCellSize = 10)
+
+smoothDensityMeanMol <- smoothDensityMol %>% mutate(meanMol = MeanMollusks / sample_density)
+smoothDensityWGSMol <- st_transform(smoothDensityMeanMol, 4326)
+
+mf_map(x = smoothDensityWGSMol, type = "choro", var="meanMol", breaks = "quantile",
+       nbreaks = 5, border = NA, leg_val_rnd = 1, leg_horiz=TRUE)
+
+mf_graticule(x = smoothDensityWGSMol, add = TRUE, col = "grey0", lty = 2, pos = c("bottom", "left"))
+mf_layout(title = "Smoothed Mollusk Density", credits = "Source: frogClean", arrow = FALSE)
 ############SPATIAL graping of da burrows
-centroValuesBurrows <- frogSFM %>%
+ptsDensityBur <- frogSFM %>%
   st_drop_geometry() %>%
-  mutate(X..burrows = as.numeric(X..burrows)) %>%
-  group_by(x_centro, y_centro) %>%
-  drop_na(X..burrows) %>%
-  summarise(MeanBurrows = mean(X..burrows, na.rm = TRUE), .groups = "drop")
-gridValuesBurrows <- btb_ptsToGrid(centroValuesBurrows, 
-                               sEPSG = 2154, 
-                               iCellSize = 200)
-mf_map(x = gridValuesBurrows, 
-       type = "choro", 
-       var = "MeanBurrows",        
-       breaks = "quantile", 
-       nbreaks = 5, 
-       lwd = 1, 
-       leg_val_rnd = 1,
-       leg_title = "Mean Burrows")
+  select(x = x_centro, y = y_centro, MeanBurrows = MeanBurrows) %>%
+  drop_na(MeanBurrows)
+
+ptsDensityBur$sample_density <- 1L
+
+smoothDensityBur <- btb_smooth(pts = ptsDensityBur, sEPSG = 32610, iBandwidth = 450, iCellSize = 10)
+
+smoothDensityMeanBur <- smoothDensityBur %>% mutate(meanBur = MeanBurrows / sample_density)
+smoothDensityWGSBur <- st_transform(smoothDensityMeanBur, 4326)
+
+mf_map(x = smoothDensityWGSBur, type = "choro", var="meanBur", breaks = "quantile",
+       nbreaks = 5, border = NA, leg_val_rnd = 1, leg_horiz=TRUE)
+
+mf_graticule(x = smoothDensityWGSBur, add = TRUE, col = "grey0", lty = 2, pos = c("bottom", "left"))
+mf_layout(title = "Smoothed Burrow Density", credits = "Source: frogClean", arrow = FALSE)
+
+par(mfrow = c(1, 1))
 ##################################################################################################
 #########################  MODELING AND TESTING  #################################################
 ##################################################################################################
@@ -815,7 +849,10 @@ emmeans(modWetPH, pairwise ~ `Soil sample`)
 #simple models wet
 modWetSimpleSM<-lmer(`% SM`~`Soil sample`+(1|`Point #`), data=dataWet)
 summary(modWetSimpleSM)
-emmeans(modWetSimpleSM, pairwise ~ `Soil sample`)
+meansWetOM<-emmeans(modWetSimpleSM, pairwise ~ `Soil sample`)
+summary(meansWetOM)
+plot(meansWetOM, title = "Soil Moisture by Soil Sample (Wet Season)")+
+  geom_vline(xintercept = 4.05, color = "red", linetype = "dashed", size = 1)
 
 modWetSimpleOM<-lmer(`% OM`~`Soil sample`+(1|`Point #`), data=dataWet)
 summary(modWetSimpleOM)
@@ -944,4 +981,6 @@ validatePoissonModel <- function(model) {
   print(vif(model))
 }
 validatePoissonModel(modFrog1)
+
+
 
