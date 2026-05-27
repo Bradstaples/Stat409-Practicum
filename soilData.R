@@ -293,14 +293,14 @@ smoothDensityFern <- btb_smooth(pts = ptsDensityFern,sEPSG = 32610,
 smoothDensityFernMean <- smoothDensityFern %>% mutate(meanFern=MeanFern/sample_density)
 smoothDensityFernWGS <- st_transform(smoothDensityFernMean, 4326)
 
-mf_map(x = smoothDensityFernWGS,type = "choro",var="meanFern",breaks = "quantile",
-       nbreaks = 5,border = NA,leg_val_rnd = 1,leg_horiz=TRUE)
-
-mf_graticule(x = smoothDensityFernWGS, add = TRUE, col = "grey0", lty = 2,pos = c("bottom", "left"))
-
-mf_layout(title = "Smoothed Fern Density", 
-          credits = "Source: dataWet",
-          arrow = FALSE)
+ggplot(data=smoothDensityFernWGS)+
+  geom_sf(aes(fill=meanFern), color=NA)+
+  scale_fill_viridis_c(option = "inferno", name = "Fern Density")+
+  theme_minimal() +
+  theme(
+    panel.grid.major = element_line(color = "grey50", linetype = "dashed"),
+    legend.position = "bottom",
+    axis.text.x = element_text(angle = 45, hjust = 1))
 
 ############## ORganic Matter ############## ############## 
 
@@ -317,15 +317,14 @@ smoothDensityOM <- btb_smooth(pts = ptsDensityOM,sEPSG = 32610,
 smoothDensityMeanOM <- smoothDensityOM %>% mutate(meanOM=MeanOM/sample_density)
 smoothDensityWGSOM <- st_transform(smoothDensityMeanOM, 4326)
 
-mf_map(x = smoothDensityWGSOM,type = "choro",var="meanOM",breaks = "quantile",
-       nbreaks = 5,border = NA,leg_val_rnd = 1,leg_horiz=TRUE)
-
-mf_graticule(x = smoothDensityWGSOM, add = TRUE, col = "grey0", lty = 2,pos = c("bottom", "left"))
-
-mf_layout(title = "Smoothed Organic Matter Density", 
-          credits = "Source: dataWet",
-          arrow = FALSE)
-
+ggplot(data=smoothDensityWGSOM)+
+  geom_sf(aes(fill=meanOM), color=NA)+
+  scale_fill_viridis_c(option = "inferno", name = "Organic Matter")+
+  theme_minimal() +
+  theme(
+    panel.grid.major = element_line(color = "grey50", linetype = "dashed"),
+    legend.position = "bottom",
+    axis.text.x = element_text(angle = 45, hjust = 1))
 ############## ############## Soil Moisture map ############## ##############
 ptsDensitySM <- dataWetSFM%>%
   st_drop_geometry() %>%
@@ -340,14 +339,14 @@ smoothDensitySM <- btb_smooth(pts = ptsDensitySM,sEPSG = 32610,
 smoothDensityMeanSM <- smoothDensitySM %>% mutate(meanSM=MeanSM/sample_density)
 smoothDensityWGSSM <- st_transform(smoothDensityMeanSM, 4326)
 
-mf_map(x = smoothDensityWGSSM,type = "choro",var="meanSM",breaks = "quantile",
-       nbreaks = 5,border = NA,leg_val_rnd = 1,leg_horiz=TRUE)
-
-mf_graticule(x = smoothDensityWGSSM, add = TRUE, col = "grey0", lty = 2,pos = c("bottom", "left"))
-
-mf_layout(title = "Smoothed Soil Moisture Density", 
-          credits = "Source: dataWet",
-          arrow = FALSE)
+ggplot(data=smoothDensityWGSSM)+
+  geom_sf(aes(fill=MeanSM), color=NA)+
+  scale_fill_viridis_c(option = "inferno", name = "Soil Moisture")+
+  theme_minimal() +
+  theme(
+    panel.grid.major = element_line(color = "grey50", linetype = "dashed"),
+    legend.position = "bottom",
+    axis.text.x = element_text(angle = 45, hjust = 1))
 
 ############## ############## ph map ############## ##############
 ptsDensityPH <- dataWetSFM%>%
@@ -363,15 +362,14 @@ smoothDensityPH <- btb_smooth(pts = ptsDensityPH,sEPSG = 32610,
 smoothDensityMeanPH <- smoothDensityPH %>% mutate(meanPH=MeanPH/sample_density)
 smoothDensityWGSPH <- st_transform(smoothDensityMeanPH, 4326)
 
-mf_map(x = smoothDensityWGSPH,type = "choro",var="meanPH",breaks = "quantile",
-       nbreaks = 5,border = NA,leg_val_rnd = 1,leg_horiz=TRUE)
-
-mf_graticule(x = smoothDensityWGSPH, add = TRUE, col = "grey0", lty = 2,pos = c("bottom", "left"))
-
-mf_layout(title = "Smoothed pH Density", 
-          credits = "Source: dataWet",
-          arrow = FALSE)
-
+ggplot(data=smoothDensityWGSPH)+
+  geom_sf(aes(fill=meanPH), color=NA)+
+  scale_fill_viridis_c(option = "inferno", name = "pH Levels")+
+  theme_minimal() +
+  theme(
+    panel.grid.major = element_line(color = "grey50", linetype = "dashed"),
+    legend.position = "bottom",
+    axis.text.x = element_text(angle = 45, hjust = 1))
 ############## ############## EC map ############## ##############
 ptsDensityEC <- dataWetSFM%>%
   st_drop_geometry() %>%
@@ -386,16 +384,14 @@ smoothDensityEC <- btb_smooth(pts = ptsDensityEC,sEPSG = 32610,
 smoothDensityMeanEC <- smoothDensityEC %>% mutate(meanEC=MeanEC/sample_density)
 smoothDensityWGSEC <- st_transform(smoothDensityMeanEC, 4326)
 
-mf_map(x = smoothDensityWGSEC,type = "choro",var="meanEC",breaks = "quantile",
-       nbreaks = 5,border = NA,leg_val_rnd = 1,leg_horiz=TRUE)
-
-mf_graticule(x = smoothDensityWGSEC, add = TRUE, col = "grey0", lty = 2,pos = c("bottom", "left"))
-
-mf_layout(title = "Smoothed Electric Conductivity Density", 
-          credits = "Source: dataWet",
-          arrow = FALSE)
-
-
+ggplot(data=smoothDensityWGSEC)+
+  geom_sf(aes(fill=meanEC), color=NA)+
+  scale_fill_viridis_c(option = "inferno", name = "Electric Conductivity")+
+  theme_minimal() +
+  theme(
+    panel.grid.major = element_line(color = "grey50", linetype = "dashed"),
+    legend.position = "bottom",
+    axis.text.x = element_text(angle = 45, hjust = 1))
 ############## ############## mollusks map ############## ##############
 ptsDensityMol <- dataWetSFM%>%
   st_drop_geometry() %>%
@@ -421,18 +417,18 @@ mf_layout(title = "Smoothed Mollusks Density",
 ###################### Canopy COver
 ptsDensityCanopy <- dataWetSFM %>%
   st_drop_geometry() %>%
-  select(x = x_centro, y = y_centro, Value = meanCanopy) %>%
-  drop_na(Value)
+  select(x = x_centro, y = y_centro, meanCanopy = meanCanopy) %>%
+  drop_na(meanCanopy)
 
 ptsDensityCanopy$sample_density <- 1L
 
 smoothDensityCanopy <- btb_smooth(pts = ptsDensityCanopy, sEPSG = 32610, 
                                   iBandwidth = 450, iCellSize = 10)
 
-smoothDensityMeanCanopy <- smoothDensityCanopy %>% mutate(FinalEstimate = Value / sample_density)
+smoothDensityMeanCanopy <- smoothDensityCanopy %>% mutate(meanCanopy = meanCanopy / sample_density)
 smoothDensityWGSCanopy <- st_transform(smoothDensityMeanCanopy, 4326)
 
-mf_map(x = smoothDensityWGSCanopy, type = "choro", var="FinalEstimate", breaks = "quantile",
+mf_map(x = smoothDensityWGSCanopy, type = "choro", var="meanCanopy", breaks = "quantile",
        nbreaks = 5, border = NA, leg_val_rnd = 1, leg_horiz=TRUE)
 
 mf_graticule(x = smoothDensityWGSCanopy, add = TRUE, col = "grey0", lty = 2, pos = c("bottom", "left"))
@@ -442,18 +438,31 @@ mf_layout(title = "Smoothed Canopy Cover Density",
 ######### Slope 
 ptsDensitySlope <- dataWetSFM %>%
   st_drop_geometry() %>%
-  select(x = x_centro, y = y_centro, Value = meanSlope) %>%
-  drop_na(Value)
+  select(x = x_centro, y = y_centro, meanSlope = meanSlope) %>%
+  drop_na(meanSlope)
 
 ptsDensitySlope$sample_density <- 1L
 
 smoothDensitySlope <- btb_smooth(pts = ptsDensitySlope, sEPSG = 32610, 
                                  iBandwidth = 450, iCellSize = 10)
 
-smoothDensityMeanSlope <- smoothDensitySlope %>% mutate(FinalEstimate = Value / sample_density)
+smoothDensityMeanSlope <- smoothDensitySlope %>% mutate(meanSlope = meanSlope / sample_density)
 smoothDensityWGSSlope <- st_transform(smoothDensityMeanSlope, 4326)
 
-mf_map(x = smoothDensityWGSSlope, type = "choro", var="FinalEstimate", breaks = "quantile",
+ggplot(data=smoothDensityWGSSlope)+
+  geom_sf(aes(fill=meanSlope), color=NA)+
+  scale_fill_viridis_c(option = "inferno", name = "Slope")+
+  labs(
+    title = "Smoothed Slope Density",
+    caption = "Source: dataWet"
+  ) +
+  theme_minimal() +
+  theme(
+    panel.grid.major = element_line(color = "grey50", linetype = "dashed"),
+    legend.position = "bottom",
+    axis.text.x = element_text(angle = 45, hjust = 1))
+
+mf_map(x = smoothDensityWGSSlope, type = "choro", var="meanSlope", breaks = "quantile",
        nbreaks = 5, border = NA, leg_val_rnd = 1, leg_horiz=TRUE)
 
 mf_graticule(x = smoothDensityWGSSlope, add = TRUE, col = "grey0", lty = 2, pos = c("bottom", "left"))
@@ -696,10 +705,15 @@ frogClean |>
 
 ############ ############ ############ FROGGO Spatial Graphing ############ ############ ############ 
 #fill longitude and latitude valuesfopr frog data
+frogClean$`Latitude`[frogClean$`Latitude` == ""] <- NA
+frogClean$`Longitude`[frogClean$`Longitude` == ""] <- NA
+frogClean$`Fern Density`[frogClean$`Longitude` == ""] <- NA
+frogClean<-fill(frogClean,Longitude, Latitude, `Fern Density`, .direction = "down")
+
 frogAggregated <- frogClean %>%
-  fill(Longitude, Latitude) %>%
   group_by(Latitude, Longitude) %>%
   summarise(
+    MeanFern = mean(as.numeric(`Fern Density`), na.rm = TRUE),
     MeanMollusks = suppressWarnings(
       mean(as.numeric(`# mollusks`[`Soil sample` %in% c("Edge", "Veg", "Non-veg")]), na.rm = TRUE)
     ),
@@ -708,6 +722,7 @@ frogAggregated <- frogClean %>%
     ),
     .groups = "drop"
   )
+frogAggregated['area']= ifelse(frogAggregated$Longitude<122.82,1,ifelse(frogAggregated$Longitude>122.845,3,2)) 
 
 frogMap<-fill(frogAggregated, Longitude, Latitude)
 frogSF <- st_as_sf(frogMap, 
@@ -721,6 +736,31 @@ frogSFM<-btb_add_centroids(frogSF,
 
 par(mfrow = c(2, 2), mar = c(1, 1, 2, 1))
 ############################################### FRRRROOOOOG SPATIAL GRPAHING #######################
+########Fern Density3############
+
+ptsDensityFern <- frogSFM %>%
+  st_drop_geometry() %>%
+  select(x = x_centro, y = y_centro, MeanFern = MeanFern) %>%
+  drop_na(MeanFern)
+ptsDensityFern$sample_density <- 1L
+smoothDensityFern <- btb_smooth(pts = ptsDensityFern, sEPSG = 32610, iBandwidth = 450, iCellSize = 10)
+smoothDensityMeanFern <- smoothDensityFern %>% mutate(meanFern = MeanFern / sample_density)
+smoothDensityWGSFern <- st_transform(smoothDensityMeanFern, 4326)
+smoothDensityWGSFern$grid_long <- st_coordinates(st_centroid(smoothDensityWGSFern))[, 1]
+smoothDensityWGSFern$area <- ifelse(smoothDensityWGSFern$grid_long < 122.82, 1, 
+                                   ifelse(smoothDensityWGSFern$grid_long > 122.845, 3, 2))
+ggplot(data = filter(smoothDensityWGSFern, area==1)) +
+  geom_sf(aes(fill = meanFern), color = NA) +
+  labs(
+    title = "Smoothed Fern Density",
+    caption = "Source: dataWet"
+  ) +
+  theme_minimal() +
+  theme(
+    panel.grid.major = element_line(color = "grey50", linetype = "dashed"),
+    legend.position = "bottom",
+    axis.text.x = element_text(angle = 45, hjust = 1))
+
 ####### Spatial graphing of mollusk
 ptsDensityMol <- frogSFM %>%
   st_drop_geometry() %>%
@@ -734,11 +774,23 @@ smoothDensityMol <- btb_smooth(pts = ptsDensityMol, sEPSG = 32610, iBandwidth = 
 smoothDensityMeanMol <- smoothDensityMol %>% mutate(meanMol = MeanMollusks / sample_density)
 smoothDensityWGSMol <- st_transform(smoothDensityMeanMol, 4326)
 
-mf_map(x = smoothDensityWGSMol, type = "choro", var="meanMol", breaks = "quantile",
-       nbreaks = 5, border = NA, leg_val_rnd = 1, leg_horiz=TRUE)
+smoothDensityWGSMol$grid_long <- st_coordinates(st_centroid(smoothDensityWGSMol))[, 1]
 
-mf_graticule(x = smoothDensityWGSMol, add = TRUE, col = "grey0", lty = 2, pos = c("bottom", "left"))
-mf_layout(title = "Smoothed Mollusk Density", credits = "Source: frogClean", arrow = FALSE)
+smoothDensityWGSMol$area <- ifelse(smoothDensityWGSMol$grid_long < 122.82, 1, 
+                                   ifelse(smoothDensityWGSMol$grid_long > 122.845, 3, 2))
+
+ggplot(data = filter(smoothDensityWGSMol, area == 1)) +
+  geom_sf(aes(fill = meanMol), color = NA) +
+  labs(
+    title = "Smoothed Slope Density",
+    caption = "Source: dataWet"
+  ) +
+  theme_minimal() +
+  theme(
+    panel.grid.major = element_line(color = "grey50", linetype = "dashed"),
+    legend.position = "bottom",
+    axis.text.x = element_text(angle = 45, hjust = 1))
+
 ############SPATIAL graping of da burrows
 ptsDensityBur <- frogSFM %>%
   st_drop_geometry() %>%
@@ -751,9 +803,21 @@ smoothDensityBur <- btb_smooth(pts = ptsDensityBur, sEPSG = 32610, iBandwidth = 
 
 smoothDensityMeanBur <- smoothDensityBur %>% mutate(meanBur = MeanBurrows / sample_density)
 smoothDensityWGSBur <- st_transform(smoothDensityMeanBur, 4326)
+smoothDensityWGSBur$grid_long <- st_coordinates(st_centroid(smoothDensityWGSBur))[, 1]
+smoothDensityWGSBur$area <- ifelse(smoothDensityWGSBur$grid_long < 122.82, 1, 
+                                   ifelse(smoothDensityWGSBur$grid_long > 122.845, 3, 2))
 
-mf_map(x = smoothDensityWGSBur, type = "choro", var="meanBur", breaks = "quantile",
-       nbreaks = 5, border = NA, leg_val_rnd = 1, leg_horiz=TRUE)
+ggplot(data = filter(smoothDensityWGSBur, area==1)) +
+  geom_sf(aes(fill = meanBur), color = NA) +
+  labs(
+    title = "Smoothed Slope Density",
+    caption = "Source: dataWet"
+  ) +
+  theme_minimal() +
+  theme(
+    panel.grid.major = element_line(color = "grey50", linetype = "dashed"),
+    legend.position = "bottom",
+    axis.text.x = element_text(angle = 45, hjust = 1))
 
 mf_graticule(x = smoothDensityWGSBur, add = TRUE, col = "grey0", lty = 2, pos = c("bottom", "left"))
 mf_layout(title = "Smoothed Burrow Density", credits = "Source: frogClean", arrow = FALSE)
@@ -937,7 +1001,6 @@ summary(modAll2)
 emmeans(modAll1, pairwise ~ `Soil sample`*Season)
 emmeans(modAll2, pairwise ~ `Soil sample`*Season)
 
-
 ##################################################################################################
 ################ froggie based models ################
 modFrog1<- glmer(`# mollusks` ~ `Soil sample`+`# burrows`+(1|`Frog ID`), data=frogClean, family = "poisson")
@@ -981,6 +1044,3 @@ validatePoissonModel <- function(model) {
   print(vif(model))
 }
 validatePoissonModel(modFrog1)
-
-
-
