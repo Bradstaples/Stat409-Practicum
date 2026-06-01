@@ -65,11 +65,11 @@ dataDryLong <- dataDry |>
   )
 ##################################################################################################
 #ggparis for dry data
-ggpairs(dataDryWide[, c("pH_Veg", "pH_Point", "pH_Non-veg", "pH_Edge", "pH_Base" )],
-        title = "pH comparisons of soil samples in dry season")
-ggpairs(dataDryWide[, c("EC_Veg", "EC_Point", "EC_Non-veg", "EC_Edge", "EC_Base" )])
-ggpairs(dataDryWide[, c("% SM_Veg", "% SM_Point", "% SM_Non-veg", "% SM_Edge", "% SM_Base" )])
-ggpairs(dataDryWide[, c("% OM_Veg", "% OM_Point", "% OM_Non-veg", "% OM_Edge", "% OM_Base" )])
+#ggpairs(dataDryWide[, c("pH_Veg", "pH_Point", "pH_Non-veg", "pH_Edge", "pH_Base" )],
+#        title = "pH comparisons of soil samples in dry season")
+#ggpairs(dataDryWide[, c("EC_Veg", "EC_Point", "EC_Non-veg", "EC_Edge", "EC_Base" )])
+#ggpairs(dataDryWide[, c("% SM_Veg", "% SM_Point", "% SM_Non-veg", "% SM_Edge", "% SM_Base" )])
+#ggpairs(dataDryWide[, c("% OM_Veg", "% OM_Point", "% OM_Non-veg", "% OM_Edge", "% OM_Base" )])
 
 ###################################################################################################
 ####################     DRY SEASON GRAPHS     ##########################################
@@ -92,7 +92,7 @@ theme_minimal()
 #gg boxplot
 ggplot(dataDry, aes(x=`Soil sample`, y=`% SM`, fill=`Soil sample`))+
   geom_boxplot(alpha=0.65)+
-  labs(title="Soil Mositure by sample type(Wet Season)",
+  labs(title="Soil Mositure by sample type(Dryt Season)",
        x= "Soil Sample Type",
        y="% Soil Mositure")
 #ggplot of everything vs soil moisture
@@ -138,8 +138,6 @@ dataDryAggregated <- dataDry %>%
     FernIsPresent = ifelse(any(grepl("B|E", `Soil sample`, ignore.case = TRUE)), 1, 0),
     .groups = "drop"
   )
-
-
 dataDrySF <- st_as_sf(dataDryAggregated, 
                       coords = c("Longitude", "Latitude"), 
                       crs = 4326) %>% 
@@ -147,7 +145,7 @@ dataDrySF <- st_as_sf(dataDryAggregated,
 
 dataDrySFM<-btb_add_centroids(dataDrySF, 
                               iCellSize = 200)
-par(mfrow = c(2, 3), mar = c(1, 1, 2, 1))
+#par(mfrow = c(2, 3), mar = c(1, 1, 2, 1))
 ########  OM SPATIAL MAP  ###########################################################
 ptsDensityOM <- dataDrySFM %>%
   st_drop_geometry() %>%
@@ -157,11 +155,10 @@ ptsDensityOM <- dataDrySFM %>%
 ptsDensityOM$sample_density <- 1L
 
 smoothDensityOM <- btb_smooth(pts = ptsDensityOM, sEPSG = 32610, iBandwidth = 450, iCellSize = 10)
-
 smoothDensityMeanOM <- smoothDensityOM %>% mutate(meanOM = MeanOM / sample_density)
-smoothDensityWGSOM <- st_transform(smoothDensityMeanOM, 4326)
+smoothDensityMapOM <- st_transform(smoothDensityMeanOM, 4326)
 
-ggplot(data=smoothDensityWGSOM)+
+ggplot(data=smoothDensityMapOM)+
   geom_sf(aes(fill=meanOM), color=NA)+
   scale_fill_viridis_c(option = "inferno", name = "Organic Matter")+
   theme_minimal() +
@@ -180,15 +177,17 @@ ptsDensitySM <- dataDrySFM %>%
 ptsDensitySM$sample_density <- 1L
 
 smoothDensitySM <- btb_smooth(pts = ptsDensitySM, sEPSG = 32610, iBandwidth = 450, iCellSize = 10)
-
 smoothDensityMeanSM <- smoothDensitySM %>% mutate(meanSM = MeanSM / sample_density)
-smoothDensityWGSSM <- st_transform(smoothDensityMeanSM, 4326)
+smoothDensityMapSM <- st_transform(smoothDensityMeanSM, 4326)
 
-mf_map(x = smoothDensityWGSSM, type = "choro", var="meanSM", breaks = "quantile",
-       nbreaks = 5, border = NA, leg_val_rnd = 1, leg_horiz=TRUE)
-mf_graticule(x = smoothDensityWGSSM, add = TRUE, col = "grey0", lty = 2, pos = c("bottom", "left"))
-mf_layout(title = "Smoothed Soil Moisture Density", credits = "Source: dataDry", arrow = FALSE)
-
+ggplot(data=smoothDensityMapSM)+
+  geom_sf(aes(fill=MeanSM), color=NA)+
+  scale_fill_viridis_c(option = "inferno", name = "Organic Matter")+
+  theme_minimal() +
+  theme(
+    panel.grid.major = element_line(color = "grey50", linetype = "dashed"),
+    legend.position = "bottom",
+    axis.text.x = element_text(angle = 45, hjust = 1))
 ########  ph SPATIAL MAP  ###########################################################
 ptsDensityPH <- dataDrySFM %>%
   st_drop_geometry() %>%
@@ -198,14 +197,17 @@ ptsDensityPH <- dataDrySFM %>%
 ptsDensityPH$sample_density <- 1L
 
 smoothDensityPH <- btb_smooth(pts = ptsDensityPH, sEPSG = 32610, iBandwidth = 450, iCellSize = 10)
-
 smoothDensityMeanPH <- smoothDensityPH %>% mutate(meanPH = MeanPH / sample_density)
-smoothDensityWGSPH <- st_transform(smoothDensityMeanPH, 4326)
+smoothDensityMapPH <- st_transform(smoothDensityMeanPH, 4326)
 
-mf_map(x = smoothDensityWGSPH, type = "choro", var="meanPH", breaks = "quantile",
-       nbreaks = 5, border = NA, leg_val_rnd = 1, leg_horiz=TRUE)
-mf_graticule(x = smoothDensityWGSPH, add = TRUE, col = "grey0", lty = 2, pos = c("bottom", "left"))
-mf_layout(title = "Smoothed pH Density", credits = "Source: dataDry", arrow = FALSE)
+ggplot(data=smoothDensityMapPH)+
+  geom_sf(aes(fill=MeanPH), color=NA)+
+  scale_fill_viridis_c(option = "inferno", name = "Organic Matter")+
+  theme_minimal() +
+  theme(
+    panel.grid.major = element_line(color = "grey50", linetype = "dashed"),
+    legend.position = "bottom",
+    axis.text.x = element_text(angle = 45, hjust = 1))
 ########  EC SPATIAL MAP  ###########################################################
 ptsDensityEC <- dataDrySFM %>%
   st_drop_geometry() %>%
@@ -215,14 +217,17 @@ ptsDensityEC <- dataDrySFM %>%
 ptsDensityEC$sample_density <- 1L
 
 smoothDensityEC <- btb_smooth(pts = ptsDensityEC, sEPSG = 32610, iBandwidth = 450, iCellSize = 10)
-
 smoothDensityMeanEC <- smoothDensityEC %>% mutate(meanEC = MeanEC / sample_density)
-smoothDensityWGSEC <- st_transform(smoothDensityMeanEC, 4326)
+smoothDensityMapEC <- st_transform(smoothDensityMeanEC, 4326)
 
-mf_map(x = smoothDensityWGSEC, type = "choro", var="meanEC", breaks = "quantile",
-       nbreaks = 5, border = NA, leg_val_rnd = 1, leg_horiz=TRUE)
-mf_graticule(x = smoothDensityWGSEC, add = TRUE, col = "grey0", lty = 2, pos = c("bottom", "left"))
-mf_layout(title = "Smoothed EC Density", credits = "Source: dataDry", arrow = FALSE)
+ggplot(data=smoothDensityMapEC)+
+  geom_sf(aes(fill=MeanEC), color=NA)+
+  scale_fill_viridis_c(option = "inferno", name = "Organic Matter")+
+  theme_minimal() +
+  theme(
+    panel.grid.major = element_line(color = "grey50", linetype = "dashed"),
+    legend.position = "bottom",
+    axis.text.x = element_text(angle = 45, hjust = 1))
 
 ##########Canopy Cover
 ptsDensityCanopy <- dataDrySFM %>%
@@ -233,16 +238,17 @@ ptsDensityCanopy <- dataDrySFM %>%
 ptsDensityCanopy$sample_density <- 1L
 
 smoothDensityCanopy <- btb_smooth(pts = ptsDensityCanopy, sEPSG = 32610, iBandwidth = 450, iCellSize = 10)
-
 smoothDensityMeanCanopy <- smoothDensityCanopy %>% mutate(meanCanopy = MeanCanopy / sample_density)
-smoothDensityWGSCanopy <- st_transform(smoothDensityMeanCanopy, 4326)
+smoothDensityMapCanopy <- st_transform(smoothDensityMeanCanopy, 4326)
 
-mf_map(x = smoothDensityWGSCanopy, type = "choro", var="meanCanopy", breaks = "quantile",
-       nbreaks = 5, border = NA, leg_val_rnd = 1, leg_horiz=TRUE)
-mf_graticule(x = smoothDensityWGSCanopy, add = TRUE, col = "grey0", lty = 2, pos = c("bottom", "left"))
-mf_layout(title = "Smoothed Canopy Cover Density", credits = "Source: dataDry", arrow = FALSE)
-
-par(mfrow = c(1, 1))
+ggplot(data=smoothDensityMapCanopy)+
+  geom_sf(aes(fill=meanCanopy), color=NA)+
+  scale_fill_viridis_c(option = "inferno", name = "Organic Matter")+
+  theme_minimal() +
+  theme(
+    panel.grid.major = element_line(color = "grey50", linetype = "dashed"),
+    legend.position = "bottom",
+    axis.text.x = element_text(angle = 45, hjust = 1))
 
 #################################################################################################
 #########################  MODELING AND TESTING  #################################################
@@ -305,20 +311,7 @@ validateModelLMER<- function(model) {
   print(var.test(residuals[group], residuals[!group]))
 }
 
-##################################################################################################
-################################ Mollusks models that exclude base #################################################
-dataWetMollusk <- dataWet |>
-  filter(`Soil sample` %in% c("Edge", "Veg", "Non-veg"))
-modWetMollusk1<- lmer(`% SM`~`Soil sample`+`% OM`+pH+EC+`# mollusks`+(1|`Point #`), data=dataWetMollusk)
-summary(modWetMollusk1)
-modWetMollusk2<- lmer(`% OM`~`Soil sample`+`% SM`+pH+EC+`# mollusks`+(1|`Point #`), data=dataWetMollusk)
-summary(modWetMollusk2)
-modWetMollusks3<-lmer(`# mollusks`~`Soil sample`+`% SM`+`% OM`+pH+EC+(1|`Point #`), data=dataWetMollusk)
-summary(modWetMollusks3)
 
-modWetSimpleMollusks<-lmer(`# mollusks`~`Soil sample`+(1|`Point #`), data=dataWetMollusk)
-summary(modWetSimpleMollusks)
-emmeans(modWetSimpleMollusks, pairwise ~ `Soil sample`)
 ##################################################################################################
 ############## Dry Season Models ####################### 
 modDrySM<- lmer(`% SM`~`Soil sample`+`% OM`+pH+EC+`# mollusks`+(1|`Point #`), data=dataDry)

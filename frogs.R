@@ -10,6 +10,7 @@ library(sf)
 library(btb)
 library(lme4)
 library(lmerTest)
+library(patchwork)
 ##################################################################################################
 frog<-read.csv("FrogTrackingHab_2026-1.csv", skip=1, check.names=FALSE)
 ############################################################################################
@@ -157,12 +158,11 @@ frogSF <- st_as_sf(frogMap,
                    coords = c("Longitude", "Latitude"), 
                    crs = 4326) %>% 
   st_transform(crs = 32610)
-plot(frogSF$geometry)
 
 frogSFM<-btb_add_centroids(frogSF, 
                            iCellSize = 200)
 
-par(mfrow = c(2, 2), mar = c(1, 1, 2, 1))
+#par(mfrow = c(2, 2), mar = c(1, 1, 2, 1))
 ############################################### FRRRROOOOOG SPATIAL GRPAHING #######################
 ########Fern Density3############
 
@@ -171,16 +171,17 @@ ptsDensityFern <- frogSFM %>%
   select(x = x_centro, y = y_centro, MeanFern = MeanFern) %>%
   drop_na(MeanFern)
 ptsDensityFern$sample_density <- 1L
+
 smoothDensityFern <- btb_smooth(pts = ptsDensityFern, sEPSG = 32610, iBandwidth = 450, iCellSize = 10)
 smoothDensityMeanFern <- smoothDensityFern %>% mutate(meanFern = MeanFern / sample_density)
-smoothDensityWGSFern <- st_transform(smoothDensityMeanFern, 4326)
-smoothDensityWGSFern$grid_long <- st_coordinates(st_centroid(smoothDensityWGSFern))[, 1]
-smoothDensityWGSFern$area <- ifelse(smoothDensityWGSFern$grid_long < 122.82, 1, 
-                                    ifelse(smoothDensityWGSFern$grid_long > 122.845, 3, 2))
-ggplot(data = filter(smoothDensityWGSFern, area==1)) +
+smoothDensityMapFern <- st_transform(smoothDensityMeanFern, 4326)
+smoothDensityMapFern$grid_long <- st_coordinates(st_centroid(smoothDensityMapFern))[, 1]
+smoothDensityMapFern$area <- ifelse(smoothDensityMapFern$grid_long < 122.82, 1, 
+                                    ifelse(smoothDensityMapFern$grid_long > 122.845, 3, 2))
+F1<-ggplot(data = filter(smoothDensityMapFern, area==1)) +
   geom_sf(aes(fill = meanFern), color = NA) +
   labs(
-    title = "Smoothed Fern Density",
+    title = "Burlington Creek",
     caption = "Source: dataWet"
   ) +
   theme_minimal() +
@@ -188,6 +189,39 @@ ggplot(data = filter(smoothDensityWGSFern, area==1)) +
     panel.grid.major = element_line(color = "grey50", linetype = "dashed"),
     legend.position = "bottom",
     axis.text.x = element_text(angle = 45, hjust = 1))
+
+F2<-ggplot(data = filter(smoothDensityMapFern, area==2)) +
+  geom_sf(aes(fill = meanFern), color = NA) +
+  labs(
+    title = "Burlington Bottoms",
+    caption = "Source: dataWet"
+  ) +
+  theme_minimal() +
+  theme(
+    panel.grid.major = element_line(color = "grey50", linetype = "dashed"),
+    legend.position = "bottom",
+    axis.text.x = element_text(angle = 45, hjust = 1))
+
+F3<-ggplot(data = filter(smoothDensityMapFern, area==3)) +
+  geom_sf(aes(fill = meanFern), color = NA) +
+  labs(
+    title = "Migration Corridor",
+    caption = "Source: dataWet"
+  ) +
+  theme_minimal() +
+  theme(
+    panel.grid.major = element_line(color = "grey50", linetype = "dashed"),
+    legend.position = "bottom",
+    axis.text.x = element_text(angle = 45, hjust = 1))
+
+fernPlot<-F1 | F2 | F3 + plot_annotation(title = "Smoothed Fern Density Across the Study Area",
+                                      caption = "Source: dataWet") &
+  theme(plot.title = element_text(size = 16, face = "bold"),
+        plot.caption = element_text(size = 10, face = "italic"),
+        panel.grid.major = element_line(color = "grey50", linetype = "dashed"),
+        legend.position = "bottom",
+        axis.text.x = element_text(angle = 45, hjust = 1))
+print(fernPlot)
 
 ####### Spatial graphing of mollusk
 ptsDensityMol <- frogSFM %>%
@@ -200,14 +234,37 @@ ptsDensityMol$sample_density <- 1L
 smoothDensityMol <- btb_smooth(pts = ptsDensityMol, sEPSG = 32610, iBandwidth = 450, iCellSize = 10)
 
 smoothDensityMeanMol <- smoothDensityMol %>% mutate(meanMol = MeanMollusks / sample_density)
-smoothDensityWGSMol <- st_transform(smoothDensityMeanMol, 4326)
+smoothDensityMapMol <- st_transform(smoothDensityMeanMol, 4326)
 
-smoothDensityWGSMol$grid_long <- st_coordinates(st_centroid(smoothDensityWGSMol))[, 1]
+smoothDensityMapMol$grid_long <- st_coordinates(st_centroid(smoothDensityMapMol))[, 1]
+smoothDensityMapMol$area <- ifelse(smoothDensityMapMol$grid_long < 122.82, 1, 
+                                   ifelse(smoothDensityMapMol$grid_long > 122.845, 3, 2))
 
-smoothDensityWGSMol$area <- ifelse(smoothDensityWGSMol$grid_long < 122.82, 1, 
-                                   ifelse(smoothDensityWGSMol$grid_long > 122.845, 3, 2))
+ggplot(data = filter(smoothDensityMapMol, area == 1)) +
+  geom_sf(aes(fill = meanMol), color = NA) +
+  labs(
+    title = "Smoothed Mollusk Density",
+    caption = "Source: dataWet"
+  ) +
+  theme_minimal() +
+  theme(
+    panel.grid.major = element_line(color = "grey50", linetype = "dashed"),
+    legend.position = "bottom",
+    axis.text.x = element_text(angle = 45, hjust = 1))
 
-ggplot(data = filter(smoothDensityWGSMol, area == 1)) +
+ggplot(data = filter(smoothDensityMapMol, area == 2)) +
+  geom_sf(aes(fill = meanMol), color = NA) +
+  labs(
+    title = "Smoothed Mollusk Density",
+    caption = "Source: dataWet"
+  ) +
+  theme_minimal() +
+  theme(
+    panel.grid.major = element_line(color = "grey50", linetype = "dashed"),
+    legend.position = "bottom",
+    axis.text.x = element_text(angle = 45, hjust = 1))
+
+ggplot(data = filter(smoothDensityMapMol, area == 3)) +
   geom_sf(aes(fill = meanMol), color = NA) +
   labs(
     title = "Smoothed Mollusk Density",
@@ -230,12 +287,12 @@ ptsDensityBur$sample_density <- 1L
 smoothDensityBur <- btb_smooth(pts = ptsDensityBur, sEPSG = 32610, iBandwidth = 450, iCellSize = 10)
 
 smoothDensityMeanBur <- smoothDensityBur %>% mutate(meanBur = MeanBurrows / sample_density)
-smoothDensityWGSBur <- st_transform(smoothDensityMeanBur, 4326)
-smoothDensityWGSBur$grid_long <- st_coordinates(st_centroid(smoothDensityWGSBur))[, 1]
-smoothDensityWGSBur$area <- ifelse(smoothDensityWGSBur$grid_long < 122.82, 1, 
-                                   ifelse(smoothDensityWGSBur$grid_long > 122.845, 3, 2))
+smoothDensityMapBur <- st_transform(smoothDensityMeanBur, 4326)
+smoothDensityMapBur$grid_long <- st_coordinates(st_centroid(smoothDensityMapBur))[, 1]
+smoothDensityMapBur$area <- ifelse(smoothDensityMapBur$grid_long < 122.82, 1, 
+                                   ifelse(smoothDensityMapBur$grid_long > 122.845, 3, 2))
 
-ggplot(data = filter(smoothDensityWGSBur, area==1)) +
+ggplot(data = filter(smoothDensityMapBur, area==1)) +
   geom_sf(aes(fill = meanBur), color = NA) +
   labs(
     title = "Smoothed Burrow Density",
@@ -247,10 +304,30 @@ ggplot(data = filter(smoothDensityWGSBur, area==1)) +
     legend.position = "bottom",
     axis.text.x = element_text(angle = 45, hjust = 1))
 
-mf_graticule(x = smoothDensityWGSBur, add = TRUE, col = "grey0", lty = 2, pos = c("bottom", "left"))
-mf_layout(title = "Smoothed Burrow Density", credits = "Source: frogClean", arrow = FALSE)
+ggplot(data = filter(smoothDensityMapBur, area==2)) +
+  geom_sf(aes(fill = meanBur), color = NA) +
+  labs(
+    title = "Smoothed Burrow Density",
+    caption = "Source: dataWet"
+  ) +
+  theme_minimal() +
+  theme(
+    panel.grid.major = element_line(color = "grey50", linetype = "dashed"),
+    legend.position = "bottom",
+    axis.text.x = element_text(angle = 45, hjust = 1))
 
-par(mfrow = c(1, 1))
+ggplot(data = filter(smoothDensityMapBur, area==3)) +
+  geom_sf(aes(fill = meanBur), color = NA) +
+  labs(
+    title = "Smoothed Burrow Density",
+    caption = "Source: dataWet"
+  ) +
+  theme_minimal() +
+  theme(
+    panel.grid.major = element_line(color = "grey50", linetype = "dashed"),
+    legend.position = "bottom",
+    axis.text.x = element_text(angle = 45, hjust = 1))
+
 ################ Canopy Cover Spatial Graph ################
 
 ptsDensityCanopy <- frogSFM %>%
@@ -262,12 +339,12 @@ ptsDensityCanopy$sample_density <- 1L
 
 smoothDensityCanopy <- btb_smooth(pts = ptsDensityCanopy, sEPSG = 32610, iBandwidth = 450, iCellSize = 10)
 smoothDensityMeanCanopy <- smoothDensityCanopy %>% mutate(meanCanopy = MeanCanopy / sample_density)
-smoothDensityWGSCanopy <- st_transform(smoothDensityMeanCanopy, 4326)
-smoothDensityWGSCanopy$grid_long <- st_coordinates(st_centroid(smoothDensityWGSCanopy))[, 1]
-smoothDensityWGSCanopy$area <- ifelse(smoothDensityWGSCanopy$grid_long < 122.82, 1, 
-                                      ifelse(smoothDensityWGSCanopy$grid_long > 122.845, 3, 2))
+smoothDensityMapCanopy <- st_transform(smoothDensityMeanCanopy, 4326)
+smoothDensityMapCanopy$grid_long <- st_coordinates(st_centroid(smoothDensityMapCanopy))[, 1]
+smoothDensityMapCanopy$area <- ifelse(smoothDensityMapCanopy$grid_long < 122.82, 1, 
+                                      ifelse(smoothDensityMapCanopy$grid_long > 122.845, 3, 2))
 
-ggplot(data = filter(smoothDensityWGSCanopy, area == 1)) +
+ggplot(data = filter(smoothDensityMapCanopy, area == 1)) +
   geom_sf(aes(fill = meanCanopy), color = NA) +
   labs(
     title = "Smoothed Canopy Cover",
@@ -278,19 +355,47 @@ ggplot(data = filter(smoothDensityWGSCanopy, area == 1)) +
     panel.grid.major = element_line(color = "grey50", linetype = "dashed"),
     legend.position = "bottom",
     axis.text.x = element_text(angle = 45, hjust = 1))
+
+ggplot(data = filter(smoothDensityMapCanopy, area == 2)) +
+  geom_sf(aes(fill = meanCanopy), color = NA) +
+  labs(
+    title = "Smoothed Canopy Cover",
+    caption = "Source: dataWet"
+  ) +
+  theme_minimal() +
+  theme(
+    panel.grid.major = element_line(color = "grey50", linetype = "dashed"),
+    legend.position = "bottom",
+    axis.text.x = element_text(angle = 45, hjust = 1))
+
+ggplot(data = filter(smoothDensityMapCanopy, area == 3)) +
+  geom_sf(aes(fill = meanCanopy), color = NA) +
+  labs(
+    title = "Smoothed Canopy Cover",
+    caption = "Source: dataWet"
+  ) +
+  theme_minimal() +
+  theme(
+    panel.grid.major = element_line(color = "grey50", linetype = "dashed"),
+    legend.position = "bottom",
+    axis.text.x = element_text(angle = 45, hjust = 1))
+
+
 ################# Slope Spatial graph##
 ptsDensitySlope <- frogSFM %>%
   st_drop_geometry() %>%
   select(x = x_centro, y = y_centro, MeanSlope = MeanSlope) %>%
   drop_na(MeanSlope)
 ptsDensitySlope$sample_density <- 1L
+
 smoothDensitySlope <- btb_smooth(pts = ptsDensitySlope, sEPSG = 32610, iBandwidth = 450, iCellSize = 10)
 smoothDensityMeanSlope <- smoothDensitySlope %>% mutate(meanSlope = MeanSlope / sample_density)
-smoothDensityWGSSlope <- st_transform(smoothDensityMeanSlope, 4326)
-smoothDensityWGSSlope$grid_long <- st_coordinates(st_centroid(smoothDensityWGSSlope))[, 1]
-smoothDensityWGSSlope$area <- ifelse(smoothDensityWGSSlope$grid_long < 122.82, 1, 
-                                    ifelse(smoothDensityWGSSlope$grid_long > 122.845, 3, 2))
-ggplot(data = filter(smoothDensityWGSSlope, area == 1)) +
+smoothDensityMapSlope <- st_transform(smoothDensityMeanSlope, 4326)
+smoothDensityMapSlope$grid_long <- st_coordinates(st_centroid(smoothDensityMapSlope))[, 1]
+smoothDensityMapSlope$area <- ifelse(smoothDensityMapSlope$grid_long < 122.82, 1, 
+                                    ifelse(smoothDensityMapSlope$grid_long > 122.845, 3, 2))
+
+ggplot(data = filter(smoothDensityMapSlope, area == 1)) +
   geom_sf(aes(fill = meanSlope), color = NA) +
   labs(
     title = "Smoothed Slope",
@@ -301,6 +406,32 @@ ggplot(data = filter(smoothDensityWGSSlope, area == 1)) +
     panel.grid.major = element_line(color = "grey50", linetype = "dashed"),
     legend.position = "bottom",
     axis.text.x = element_text(angle = 45, hjust = 1))
+
+ggplot(data = filter(smoothDensityMapSlope, area == 2)) +
+  geom_sf(aes(fill = meanSlope), color = NA) +
+  labs(
+    title = "Smoothed Slope",
+    caption = "Source: dataWet"
+  ) +
+  theme_minimal() +
+  theme(
+    panel.grid.major = element_line(color = "grey50", linetype = "dashed"),
+    legend.position = "bottom",
+    axis.text.x = element_text(angle = 45, hjust = 1))
+
+ggplot(data = filter(smoothDensityMapSlope, area == 3)) +
+  geom_sf(aes(fill = meanSlope), color = NA) +
+  labs(
+    title = "Smoothed Slope",
+    caption = "Source: dataWet"
+  ) +
+  theme_minimal() +
+  theme(
+    panel.grid.major = element_line(color = "grey50", linetype = "dashed"),
+    legend.position = "bottom",
+    axis.text.x = element_text(angle = 45, hjust = 1))
+
+
 
 #validation function for poisson models
 validatePoissonModel <- function(model) {

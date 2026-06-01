@@ -638,17 +638,6 @@ mf_graticule(x = smoothDensityWGSCanopy, add = TRUE, col = "grey0", lty = 2, pos
 mf_layout(title = "Smoothed Canopy Cover Density", credits = "Source: dataDry", arrow = FALSE)
 
 par(mfrow = c(1, 1))
-################################################################################################
-########   SEASON COMPARISON GRAPHS   ###########################################################
-#GGplot of season shifts in soil properties by soil sample
-dataAllLong|>
-  ggplot(aes(x=Season, y=Value, fill=Season))+
-  geom_boxplot(alpha=0.65)+
-  facet_grid(Soil_Property ~ `Soil sample`, scales = "free_y") +
-  theme_minimal()+
-  labs(title="Seasonal shifts in soil properties by soil sample",
-       x= "Season",
-       y="Value")
 
 ##############################################################################################
 ############################      FROG GRAPHS    #############################################
@@ -935,25 +924,6 @@ summary(modWetSimpleEC)
 emmeans(modWetSimpleEC, pairwise ~ `Soil sample`)
 
 ##################################################################################################
-################## Wet Season models w/ fern presence #####################
-modWetSMFern<- lmer(`% SM`~FernPresence+`% OM`+pH+EC+(1|`Point #`), data=dataWet)
-summary(modWetSMFern)
-modWetOMFern<- lmer(`% OM`~FernPresence+`% SM`+pH+EC+(1|`Point #`), data=dataWet)
-summary(modWetOMFern)
-modWetFernFern<- lm(`Fern Density`~`% SM`+`% OM`+pH+EC, data=dataWet)
-summary(modWetFernFern)
-
-#validation testing
-validateModelLMER(modWetSMFern)
-validateModelLMER(modWetOMFern)
-validateModelLM(modWetFernFern)
-
-#confint plots
-plot_model(modWetSMFern,show.values = TRUE, value.offset = .3, title = "Predictors of Soil Moisture (Wet Season, Fern Presence)")
-plot_model(modWetOMFern, show.values = TRUE, value.offset = .3, title = "Predictors of Organic Matter (Wet Season, Fern Presence)")
-plot_model(modWetFernFern, show.values = TRUE, value.offset = .3, title = "Predictors of Fern Density (Wet Season, Fern Presence)")
-
-##################################################################################################
 ################################ Mollusks models that exclude base #################################################
 dataWetMollusk <- dataWet |>
   filter(`Soil sample` %in% c("Edge", "Veg", "Non-veg"))
@@ -990,16 +960,6 @@ emmeans(modDrySimplePH, pairwise ~ `Soil sample`)
 modDrySimpleEC<-lmer(EC~`Soil sample`+(1|`Point #`), data=dataDry)
 summary(modDrySimpleEC)
 emmeans(modDrySimpleEC, pairwise ~ `Soil sample`)
-
-##################################################################################################
-################  Both Season Models ####################
-modAll1<- lmer(`% SM`~`Soil sample`*Season+`% OM`+pH+EC+(1|`Point #`), data=dataAll)
-summary(modAll1)
-modAll2<- lmer(`% OM`~`Soil sample`*Season+`% SM`+pH+EC+(1|`Point #`), data=dataAll)
-summary(modAll2)
-
-emmeans(modAll1, pairwise ~ `Soil sample`*Season)
-emmeans(modAll2, pairwise ~ `Soil sample`*Season)
 
 ##################################################################################################
 ################ froggie based models ################

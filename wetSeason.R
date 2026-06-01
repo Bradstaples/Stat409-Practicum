@@ -459,6 +459,20 @@ emmeans(modWetSimplePH, pairwise ~ `Soil sample`)
 modWetSimpleEC<-lmer(EC~`Soil sample`+(1|`Point #`), data=dataWet)
 summary(modWetSimpleEC)
 emmeans(modWetSimpleEC, pairwise ~ `Soil sample`)
+##################################################################################################
+################################ Mollusks models that exclude base #################################################
+dataWetMollusk <- dataWet |>
+  filter(`Soil sample` %in% c("Edge", "Veg", "Non-veg"))
+modWetMollusk1<- lmer(`% SM`~`Soil sample`+`% OM`+pH+EC+`# mollusks`+(1|`Point #`), data=dataWetMollusk)
+summary(modWetMollusk1)
+modWetMollusk2<- lmer(`% OM`~`Soil sample`+`% SM`+pH+EC+`# mollusks`+(1|`Point #`), data=dataWetMollusk)
+summary(modWetMollusk2)
+modWetMollusks3<-lmer(`# mollusks`~`Soil sample`+`% SM`+`% OM`+pH+EC+(1|`Point #`), data=dataWetMollusk)
+summary(modWetMollusks3)
+
+modWetSimpleMollusks<-lmer(`# mollusks`~`Soil sample`+(1|`Point #`), data=dataWetMollusk)
+summary(modWetSimpleMollusks)
+emmeans(modWetSimpleMollusks, pairwise ~ `Soil sample`)
 
 ##################################################################################################
 ################## Wet Season models w/ fern presence #####################
