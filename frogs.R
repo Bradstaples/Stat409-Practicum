@@ -131,6 +131,13 @@ frogClean$`Longitude`[frogClean$`Longitude` == ""] <- NA
 frogClean$`Fern Density`[frogClean$`Longitude` == ""] <- NA
 frogClean<-fill(frogClean,Longitude, Latitude, `Fern Density`, .direction = "down")
 
+frogClean <- frogClean |>
+  mutate(area = factor(case_when(
+    Longitude < 122.82 ~ "Burlington Creek",
+    Longitude > 122.845 ~ "Migration Corridor",
+    TRUE ~ "Burlington Bottoms"
+  ), levels = c("Burlington Creek", "Burlington Bottoms", "Migration Corridor")))
+
 frogAggregated <- frogClean %>%
   group_by(Latitude, Longitude) %>%
   summarise(
@@ -162,10 +169,19 @@ frogSF <- st_as_sf(frogMap,
 frogSFM<-btb_add_centroids(frogSF, 
                            iCellSize = 200)
 
-#par(mfrow = c(2, 2), mar = c(1, 1, 2, 1))
 ############################################### FRRRROOOOOG SPATIAL GRPAHING #######################
-########Fern Density3############
+#common styling
+map_theme <- theme_minimal() +
+  theme(
+    panel.grid.major = element_line(color = "grey50", linetype = "dashed"),
+    legend.position = "bottom",
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
 
+legend_guide <- guides(
+  fill = guide_colorbar(title.position = "top", title.hjust = 0.5)
+)
+########Fern Density3############
 ptsDensityFern <- frogSFM %>%
   st_drop_geometry() %>%
   select(x = x_centro, y = y_centro, MeanFern = MeanFern) %>%
@@ -178,50 +194,27 @@ smoothDensityMapFern <- st_transform(smoothDensityMeanFern, 4326)
 smoothDensityMapFern$grid_long <- st_coordinates(st_centroid(smoothDensityMapFern))[, 1]
 smoothDensityMapFern$area <- ifelse(smoothDensityMapFern$grid_long < 122.82, 1, 
                                     ifelse(smoothDensityMapFern$grid_long > 122.845, 3, 2))
-F1<-ggplot(data = filter(smoothDensityMapFern, area==1)) +
-  geom_sf(aes(fill = meanFern), color = NA) +
-  labs(
-    title = "Burlington Creek",
-    caption = "Source: dataWet"
-  ) +
-  theme_minimal() +
-  theme(
-    panel.grid.major = element_line(color = "grey50", linetype = "dashed"),
-    legend.position = "bottom",
-    axis.text.x = element_text(angle = 45, hjust = 1))
 
-F2<-ggplot(data = filter(smoothDensityMapFern, area==2)) +
+F1 <- ggplot(data = filter(smoothDensityMapFern, area == 1)) +
   geom_sf(aes(fill = meanFern), color = NA) +
-  labs(
-    title = "Burlington Bottoms",
-    caption = "Source: dataWet"
-  ) +
-  theme_minimal() +
-  theme(
-    panel.grid.major = element_line(color = "grey50", linetype = "dashed"),
-    legend.position = "bottom",
-    axis.text.x = element_text(angle = 45, hjust = 1))
+  scale_fill_viridis_c(option = "inferno", name = "Fern Density") +
+  labs(title = "Burlington Creek") + map_theme
 
-F3<-ggplot(data = filter(smoothDensityMapFern, area==3)) +
+F2 <- ggplot(data = filter(smoothDensityMapFern, area == 2)) +
   geom_sf(aes(fill = meanFern), color = NA) +
-  labs(
-    title = "Migration Corridor",
-    caption = "Source: dataWet"
-  ) +
-  theme_minimal() +
-  theme(
-    panel.grid.major = element_line(color = "grey50", linetype = "dashed"),
-    legend.position = "bottom",
-    axis.text.x = element_text(angle = 45, hjust = 1))
+  scale_fill_viridis_c(option = "inferno", name = "Fern Density") +
+  labs(title = "Burlington Bottoms") + map_theme
 
-fernPlot<-F1 | F2 | F3 + plot_annotation(title = "Smoothed Fern Density Across the Study Area",
-                                      caption = "Source: dataWet") &
-  theme(plot.title = element_text(size = 16, face = "bold"),
-        plot.caption = element_text(size = 10, face = "italic"),
-        panel.grid.major = element_line(color = "grey50", linetype = "dashed"),
-        legend.position = "bottom",
-        axis.text.x = element_text(angle = 45, hjust = 1))
+F3 <- ggplot(data = filter(smoothDensityMapFern, area == 3)) +
+  geom_sf(aes(fill = meanFern), color = NA) +
+  scale_fill_viridis_c(option = "inferno", name = "Fern Density") +
+  labs(title = "Migration Corridor") + map_theme
+
+fernPlot <- (F1 | F2 | F3) + 
+  plot_annotation(title = "Smoothed Fern Density Across the Study Area", caption = "Source: dataWet") & 
+  map_theme & legend_guide
 print(fernPlot)
+
 
 ####### Spatial graphing of mollusk
 ptsDensityMol <- frogSFM %>%
@@ -235,47 +228,29 @@ smoothDensityMol <- btb_smooth(pts = ptsDensityMol, sEPSG = 32610, iBandwidth = 
 
 smoothDensityMeanMol <- smoothDensityMol %>% mutate(meanMol = MeanMollusks / sample_density)
 smoothDensityMapMol <- st_transform(smoothDensityMeanMol, 4326)
-
 smoothDensityMapMol$grid_long <- st_coordinates(st_centroid(smoothDensityMapMol))[, 1]
 smoothDensityMapMol$area <- ifelse(smoothDensityMapMol$grid_long < 122.82, 1, 
                                    ifelse(smoothDensityMapMol$grid_long > 122.845, 3, 2))
 
-ggplot(data = filter(smoothDensityMapMol, area == 1)) +
+m1 <- ggplot(data = filter(smoothDensityMapMol, area == 1)) +
   geom_sf(aes(fill = meanMol), color = NA) +
-  labs(
-    title = "Smoothed Mollusk Density",
-    caption = "Source: dataWet"
-  ) +
-  theme_minimal() +
-  theme(
-    panel.grid.major = element_line(color = "grey50", linetype = "dashed"),
-    legend.position = "bottom",
-    axis.text.x = element_text(angle = 45, hjust = 1))
+  scale_fill_viridis_c(option = "inferno", name = "Mollusk Density") +
+  labs(title = "Burlington Creek") + map_theme
 
-ggplot(data = filter(smoothDensityMapMol, area == 2)) +
+m2 <- ggplot(data = filter(smoothDensityMapMol, area == 2)) +
   geom_sf(aes(fill = meanMol), color = NA) +
-  labs(
-    title = "Smoothed Mollusk Density",
-    caption = "Source: dataWet"
-  ) +
-  theme_minimal() +
-  theme(
-    panel.grid.major = element_line(color = "grey50", linetype = "dashed"),
-    legend.position = "bottom",
-    axis.text.x = element_text(angle = 45, hjust = 1))
+  scale_fill_viridis_c(option = "inferno", name = "Mollusk Density") +
+  labs(title = "Burlington Bottoms") + map_theme
 
-ggplot(data = filter(smoothDensityMapMol, area == 3)) +
+m3 <- ggplot(data = filter(smoothDensityMapMol, area == 3)) +
   geom_sf(aes(fill = meanMol), color = NA) +
-  labs(
-    title = "Smoothed Mollusk Density",
-    caption = "Source: dataWet"
-  ) +
-  theme_minimal() +
-  theme(
-    panel.grid.major = element_line(color = "grey50", linetype = "dashed"),
-    legend.position = "bottom",
-    axis.text.x = element_text(angle = 45, hjust = 1))
+  scale_fill_viridis_c(option = "inferno", name = "Mollusk Density") +
+  labs(title = "Migration Corridor") + map_theme
 
+molPlot <- (m1 | m2 | m3) + 
+  plot_annotation(title = "Smoothed Mollusk Density Across the Study Area", caption = "Source: dataWet") & 
+  map_theme & legend_guide
+print(molPlot)
 ############SPATIAL graping of da burrows
 ptsDensityBur <- frogSFM %>%
   st_drop_geometry() %>%
@@ -285,49 +260,36 @@ ptsDensityBur <- frogSFM %>%
 ptsDensityBur$sample_density <- 1L
 
 smoothDensityBur <- btb_smooth(pts = ptsDensityBur, sEPSG = 32610, iBandwidth = 450, iCellSize = 10)
-
 smoothDensityMeanBur <- smoothDensityBur %>% mutate(meanBur = MeanBurrows / sample_density)
 smoothDensityMapBur <- st_transform(smoothDensityMeanBur, 4326)
 smoothDensityMapBur$grid_long <- st_coordinates(st_centroid(smoothDensityMapBur))[, 1]
 smoothDensityMapBur$area <- ifelse(smoothDensityMapBur$grid_long < 122.82, 1, 
                                    ifelse(smoothDensityMapBur$grid_long > 122.845, 3, 2))
 
-ggplot(data = filter(smoothDensityMapBur, area==1)) +
+b1 <- ggplot(data = filter(smoothDensityMapBur, area == 1)) +
   geom_sf(aes(fill = meanBur), color = NA) +
-  labs(
-    title = "Smoothed Burrow Density",
-    caption = "Source: dataWet"
-  ) +
-  theme_minimal() +
-  theme(
-    panel.grid.major = element_line(color = "grey50", linetype = "dashed"),
-    legend.position = "bottom",
-    axis.text.x = element_text(angle = 45, hjust = 1))
+  scale_fill_viridis_c(option = "inferno", name = "Burrow Density") +
+  labs(title = "Burlington Creek") + map_theme
 
-ggplot(data = filter(smoothDensityMapBur, area==2)) +
+b2 <- ggplot(data = filter(smoothDensityMapBur, area == 2)) +
   geom_sf(aes(fill = meanBur), color = NA) +
-  labs(
-    title = "Smoothed Burrow Density",
-    caption = "Source: dataWet"
-  ) +
-  theme_minimal() +
-  theme(
-    panel.grid.major = element_line(color = "grey50", linetype = "dashed"),
-    legend.position = "bottom",
-    axis.text.x = element_text(angle = 45, hjust = 1))
+  scale_fill_viridis_c(option = "inferno", name = "Burrow Density") +
+  labs(title = "Burlington Bottoms") + map_theme
 
-ggplot(data = filter(smoothDensityMapBur, area==3)) +
+b3 <- ggplot(data = filter(smoothDensityMapBur, area == 3)) +
   geom_sf(aes(fill = meanBur), color = NA) +
-  labs(
-    title = "Smoothed Burrow Density",
-    caption = "Source: dataWet"
-  ) +
-  theme_minimal() +
-  theme(
-    panel.grid.major = element_line(color = "grey50", linetype = "dashed"),
-    legend.position = "bottom",
-    axis.text.x = element_text(angle = 45, hjust = 1))
+  scale_fill_viridis_c(option = "inferno", name = "Burrow Density") +
+  labs(title = "Migration Corridor") + map_theme
 
+burrowPlot <- (b1 | b2 | b3) + 
+  plot_annotation(title = "Smoothed Burrow Density Across the Study Area", caption = "Source: dataWet") & 
+  map_theme & legend_guide
+print(burrowPlot)
+
+burrowPlot<-b1 | b2 | b3 & 
+  theme(legend.position = "bottom",
+        legend.text = element_text(angle = 45, hjust = 1))
+print(burrowPlot)
 ################ Canopy Cover Spatial Graph ################
 
 ptsDensityCanopy <- frogSFM %>%
@@ -344,42 +306,25 @@ smoothDensityMapCanopy$grid_long <- st_coordinates(st_centroid(smoothDensityMapC
 smoothDensityMapCanopy$area <- ifelse(smoothDensityMapCanopy$grid_long < 122.82, 1, 
                                       ifelse(smoothDensityMapCanopy$grid_long > 122.845, 3, 2))
 
-ggplot(data = filter(smoothDensityMapCanopy, area == 1)) +
+c1 <- ggplot(data = filter(smoothDensityMapCanopy, area == 1)) +
   geom_sf(aes(fill = meanCanopy), color = NA) +
-  labs(
-    title = "Smoothed Canopy Cover",
-    caption = "Source: dataWet"
-  ) +
-  theme_minimal() +
-  theme(
-    panel.grid.major = element_line(color = "grey50", linetype = "dashed"),
-    legend.position = "bottom",
-    axis.text.x = element_text(angle = 45, hjust = 1))
+  scale_fill_viridis_c(option = "inferno", name = "Canopy Cover (%)") +
+  labs(title = "Burlington Creek") + map_theme
 
-ggplot(data = filter(smoothDensityMapCanopy, area == 2)) +
+c2 <- ggplot(data = filter(smoothDensityMapCanopy, area == 2)) +
   geom_sf(aes(fill = meanCanopy), color = NA) +
-  labs(
-    title = "Smoothed Canopy Cover",
-    caption = "Source: dataWet"
-  ) +
-  theme_minimal() +
-  theme(
-    panel.grid.major = element_line(color = "grey50", linetype = "dashed"),
-    legend.position = "bottom",
-    axis.text.x = element_text(angle = 45, hjust = 1))
+  scale_fill_viridis_c(option = "inferno", name = "Canopy Cover (%)") +
+  labs(title = "Burlington Bottoms") + map_theme
 
-ggplot(data = filter(smoothDensityMapCanopy, area == 3)) +
+c3 <- ggplot(data = filter(smoothDensityMapCanopy, area == 3)) +
   geom_sf(aes(fill = meanCanopy), color = NA) +
-  labs(
-    title = "Smoothed Canopy Cover",
-    caption = "Source: dataWet"
-  ) +
-  theme_minimal() +
-  theme(
-    panel.grid.major = element_line(color = "grey50", linetype = "dashed"),
-    legend.position = "bottom",
-    axis.text.x = element_text(angle = 45, hjust = 1))
+  scale_fill_viridis_c(option = "inferno", name = "Canopy Cover (%)") +
+  labs(title = "Migration Corridor") + map_theme
 
+canopyPlot <- (c1 | c2 | c3) + 
+  plot_annotation(title = "Smoothed Canopy Cover Across the Study Area", caption = "Source: dataWet") & 
+  map_theme & legend_guide
+print(canopyPlot)
 
 ################# Slope Spatial graph##
 ptsDensitySlope <- frogSFM %>%
@@ -395,45 +340,83 @@ smoothDensityMapSlope$grid_long <- st_coordinates(st_centroid(smoothDensityMapSl
 smoothDensityMapSlope$area <- ifelse(smoothDensityMapSlope$grid_long < 122.82, 1, 
                                     ifelse(smoothDensityMapSlope$grid_long > 122.845, 3, 2))
 
-ggplot(data = filter(smoothDensityMapSlope, area == 1)) +
+s1 <- ggplot(data = filter(smoothDensityMapSlope, area == 1)) +
   geom_sf(aes(fill = meanSlope), color = NA) +
-  labs(
-    title = "Smoothed Slope",
-    caption = "Source: dataWet"
-  ) +
-  theme_minimal() +
-  theme(
-    panel.grid.major = element_line(color = "grey50", linetype = "dashed"),
-    legend.position = "bottom",
-    axis.text.x = element_text(angle = 45, hjust = 1))
+  scale_fill_viridis_c(option = "inferno", name = "Slope (Degrees)") +
+  labs(title = "Burlington Creek") + map_theme
 
-ggplot(data = filter(smoothDensityMapSlope, area == 2)) +
+s2 <- ggplot(data = filter(smoothDensityMapSlope, area == 2)) +
   geom_sf(aes(fill = meanSlope), color = NA) +
-  labs(
-    title = "Smoothed Slope",
-    caption = "Source: dataWet"
-  ) +
-  theme_minimal() +
-  theme(
-    panel.grid.major = element_line(color = "grey50", linetype = "dashed"),
-    legend.position = "bottom",
-    axis.text.x = element_text(angle = 45, hjust = 1))
+  scale_fill_viridis_c(option = "inferno", name = "Slope (Degrees)") +
+  labs(title = "Burlington Bottoms") + map_theme
 
-ggplot(data = filter(smoothDensityMapSlope, area == 3)) +
+s3 <- ggplot(data = filter(smoothDensityMapSlope, area == 3)) +
   geom_sf(aes(fill = meanSlope), color = NA) +
-  labs(
-    title = "Smoothed Slope",
-    caption = "Source: dataWet"
-  ) +
-  theme_minimal() +
-  theme(
-    panel.grid.major = element_line(color = "grey50", linetype = "dashed"),
-    legend.position = "bottom",
-    axis.text.x = element_text(angle = 45, hjust = 1))
+  scale_fill_viridis_c(option = "inferno", name = "Slope (Degrees)") +
+  labs(title = "Migration Corridor") + map_theme
 
+slopePlot <- (s1 | s2 | s3) + 
+  plot_annotation(title = "Smoothed Slope Across the Study Area", caption = "Source: dataWet") & 
+  map_theme & legend_guide
+print(slopePlot)
 
 
 #validation function for poisson models
+validateModelLM <- function(model) {
+  # Check for multicollinearity
+  #print("Variance Inflation Factors:")
+  #print(vif(model))
+  
+  # Check for autocorrelation
+  print("Durbin-Watson Test:")
+  print(dwtest(model))
+  
+  # Check for homoscedasticity
+  fitted_values <- model$fitted.values
+  residuals <- model$residuals
+  group <- fitted_values > median(fitted_values)
+  
+  print("Variance Test for Homoscedasticity:")
+  print(var.test(residuals[group], residuals[!group]))
+  
+  #Check Confidence Intervals
+  print("Confidence Intervals:")
+  print(confint(model))
+  
+  #fitted vs residual plot
+  plot(fitted_values, residuals, main = "Fitted vs Residuals", xlab = "Fitted Values", ylab = "Residuals")
+  abline(h = 0, col = "red")
+  
+  #qqplot
+  qqnorm(residuals, main = "QQ Plot of Residuals")
+  qqline(residuals, col = "red")
+}
+
+validateModelLMER<- function(model) {
+  # Check for multicollinearity
+  #print("Variance Inflation Factors:")
+  #print(vif(model))
+  
+  #confidence intervals
+  print("Confidence Intervals:")
+  print(confint(model))
+  
+  # Check for homoscedasticity
+  fitted_values <- fitted(model)
+  residuals <- resid(model)
+  
+  plot(fitted_values, residuals, main = "Fitted vs Residuals", xlab = "Fitted Values", ylab = "Residuals")
+  abline(h = 0, col = "red")
+  
+  # QQ plot of residuals
+  qqnorm(residuals, main = "QQ Plot of Residuals")
+  qqline(residuals, col = "red")
+  
+  #Variance test
+  group <- fitted_values > median(fitted_values)
+  print(var.test(residuals[group], residuals[!group]))
+}
+
 validatePoissonModel <- function(model) {
   # 1. Check for overdispersion (Ratio > 1 means overdispersion)
   pearsonResids <- residuals(model, type = "pearson")
@@ -474,46 +457,52 @@ validatePoissonModel(modFrog1)
 
 #Simple models
 #mollusks
-modFrogMollusk<-lmer(`# mollusks`~`Soil sample`+(1|`Frog ID`), data=frogClean)
+modFrogMollusk <- lmer(`# mollusks` ~ `Soil sample` * area + (1|`Frog ID`), data = frogClean)
 summary(modFrogMollusk)
-emmMollusks<-emmeans(modFrogMollusk, pairwise ~ `Soil sample`)
+emmMollusks <- emmeans(modFrogMollusk, pairwise ~ `Soil sample` | area)
 summary(emmMollusks)
-plot(emmMollusks, title = "Soil Moisture by Soil Sample (Wet Season)")
+pwpp(emmMollusks) + labs(title = "Mollusk Presence by Sample Type across Study Areas")
+validateModelLMER(modFrogMollusk)
 
 #burrows
-modFrogBurrow<-lmer(`# burrows`~`Soil sample`+(1|`Frog ID`), data=frogClean)
+modFrogBurrow <- lmer(`# burrows` ~ `Soil sample` * area + (1|`Frog ID`), data = frogClean)
 summary(modFrogBurrow)
-emmMollusks<-emmeans(modFrogBurrow, pairwise ~ `Soil sample`)
-summary(emmMollusks)
-plot(emmMollusks, title = "Soil Moisture by Soil Sample (Wet Season)")
+emmBurrow <- emmeans(modFrogBurrow, pairwise ~ `Soil sample` | area)
+summary(emmBurrow)
+pwpp(emmBurrow) + labs(title = "Burrow Presence by Sample Type across Study Areas")
+validateModelLMER(modFrogBurrow)
 
 #soil Pen
-modFrogSoil<- lmer(`Soil pen` ~ `Soil sample`+(1|`Frog ID`), data=frogClean)
-summary(modFrog3)
-emmSoil<-emmeans(modFrogSoil, pairwise ~ `Soil sample`)
+modFrogSoil <- lmer(`Soil pen` ~ `Soil sample` * area + (1|`Frog ID`), data = frogClean)
+summary(modFrogSoil)
+emmSoil <- emmeans(modFrogSoil, pairwise ~ `Soil sample` | area)
 summary(emmSoil)
-plot(emmSoil, title = "Soil Penetration by Soil Sample (Wet Season)")
+pwpp(emmSoil) + labs(title = "Soil Hardness by Sample Type across Study Areas")
+validateModelLMER(modFrogSoil)
 
 #fern density
-modFrogFern <- lm(`Fern Density` ~ `Soil sample`, 
+modFrogFern <- lm(`Fern Density` ~ `Soil sample` * area, 
                   data = filter(frogClean, `Soil sample` %in% c("Frog", "Random 1", "Random 2")))
 summary(modFrogFern)
-emmFern <- emmeans(modFrogFern, pairwise ~ `Soil sample`)
+emmFern <- emmeans(modFrogFern, pairwise ~ `Soil sample` | area)
 summary(emmFern)
-plot(emmFern, title = "Fern Density by Site")
+pwpp(emmFern) + labs(title = "Fern Density by Sample Type across Study Areas")
+validateModelLM(modFrogFern)
 
 #canopy cover
-modFrogCanopy <- lm(`Canopy cover (%)` ~ `Soil sample`, 
+modFrogCanopy <- lm(`Canopy cover (%)` ~ `Soil sample` * area, 
                     data = filter(frogClean, `Soil sample` %in% c("Frog", "Random 1", "Random 2")))
 summary(modFrogCanopy)
-emmCanopy <- emmeans(modFrogCanopy, pairwise ~ `Soil sample`)
+emmCanopy <- emmeans(modFrogCanopy, pairwise ~ `Soil sample` | area)
 summary(emmCanopy)
-plot(emmCanopy, title = "Canopy Cover by Site")
+pwpp(emmCanopy) + labs(title = "Canopy Cover (%) by Sample Type across Study Areas")
+validateModelLM(modFrogCanopy)
 
 #slope
-modFrogSlope <- lm(as.numeric(`Slope   (deg)`) ~ `Soil sample`, 
+modFrogSlope <- lm(as.numeric(`Slope   (deg)`) ~ `Soil sample` * area, 
                    data = filter(frogClean, `Soil sample` %in% c("Frog", "Random 1", "Random 2")))
 summary(modFrogSlope)
-emmSlope <- emmeans(modFrogSlope, pairwise ~ `Soil sample`)
+emmSlope <- emmeans(modFrogSlope, pairwise ~ `Soil sample` | area)
 summary(emmSlope)
-plot(emmSlope, title = "Slope by Site")
+pwpp(emmSlope) + labs(title = "Slope (Degrees) by Sample Type across Study Areas")
+validateModelLM(modFrogSlope)

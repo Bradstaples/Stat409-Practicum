@@ -62,12 +62,11 @@ dataWetLong <- dataWet |>
 
 ##################################################################################################
 #ggpairs plot for wet data
-ggpairs(dataWetWide[,c("% SM_Veg", "% SM_Point", "% SM_Non-veg", "% SM_Edge", "% SM_Base")])
-ggpairs(dataWetWide[, c("pH_Veg", "pH_Point", "pH_Non-veg", "pH_Edge", "pH_Base" )], 
-        title = "pH comparisons of soil samples in wet season")
-ggpairs(dataWetWide[, c("EC_Veg", "EC_Point", "EC_Non-veg", "EC_Edge", "EC_Base" )])
-ggpairs(dataWetWide[, c("% OM_Veg", "% OM_Point", "% OM_Non-veg", "% OM_Edge", "% OM_Base" )])
-
+#ggpairs(dataWetWide[,c("% SM_Veg", "% SM_Point", "% SM_Non-veg", "% SM_Edge", "% SM_Base")])
+#ggpairs(dataWetWide[, c("pH_Veg", "pH_Point", "pH_Non-veg", "pH_Edge", "pH_Base" )], 
+#        title = "pH comparisons of soil samples in wet season")
+#ggpairs(dataWetWide[, c("EC_Veg", "EC_Point", "EC_Non-veg", "EC_Edge", "EC_Base" )])
+#ggpairs(dataWetWide[, c("% OM_Veg", "% OM_Point", "% OM_Non-veg", "% OM_Edge", "% OM_Base" )])
 
 ##################################################################################################
 ##########################   WET SEASON GRAPHS               ####################################
@@ -124,14 +123,13 @@ dataWet|>
   pivot_longer(cols=c(pH, EC, `% OM`, `% SM`), names_to = "Variable", values_to = "Values") |>
   ggplot(aes(x= `Fern Density`, y= Values, color=`Soil sample`))+
   geom_point()+geom_smooth(method="lm", se=F)+facet_wrap(~Variable, scales="free_y", ncol=1)
+#everuthing vs mollusks
 dataWet|>
   select(`Point #`, `Soil sample`, `# mollusks`, pH, EC, `% OM`, `% SM`) |>
   pivot_longer(cols=c(pH, EC, `% OM`, `% SM`), names_to = "Variable", values_to = "Values") |>
   ggplot(aes(x= `# mollusks`, y= Values, color=`Soil sample`))+
   geom_point()+geom_smooth(method="lm", se=F)+facet_wrap(~Variable, scales="free_y", ncol=1)
 ############ ############ ############ Wet Season Spatial Graphing ############ ############ ############ 
-#multi plot initilization for maps
-par(mfrow = c(2, 4), mar = c(1, 1, 2, 1))
 dataWetAggregated <- dataWet %>%
   group_by(Latitude, Longitude) %>%
   summarise(
@@ -150,7 +148,6 @@ dataWetSF <- st_as_sf(dataWetAggregated,
                       coords = c("Longitude", "Latitude"), 
                       crs = 4326) %>% 
   st_transform(crs = 32610)
-#plot(dataWetSF$geometry)
 
 dataWetSFM <- btb_add_centroids(dataWetSF, 
                                 iCellSize = 200)
@@ -166,12 +163,15 @@ smoothDensityFern <- btb_smooth(pts = ptsDensityFern,sEPSG = 32610,
                                 iBandwidth = 500,iCellSize = 10)
 
 smoothDensityFernMean <- smoothDensityFern %>% mutate(meanFern=MeanFern/sample_density)
-smoothDensityFernWGS <- st_transform(smoothDensityFernMean, 4326)
+smoothDensityFernMap <- st_transform(smoothDensityFernMean, 4326)
 
-ggplot(data=smoothDensityFernWGS)+
+fd<-ggplot(data=smoothDensityFernMap)+
   geom_sf(aes(fill=meanFern), color=NA)+
   scale_fill_viridis_c(option = "inferno", name = "Fern Density")+
   theme_minimal() +
+  labs(
+    title = "Fern Density"
+  ) +
   theme(
     panel.grid.major = element_line(color = "grey50", linetype = "dashed"),
     legend.position = "bottom",
@@ -190,12 +190,15 @@ smoothDensityOM <- btb_smooth(pts = ptsDensityOM,sEPSG = 32610,
                               iBandwidth = 450,iCellSize = 10)
 
 smoothDensityMeanOM <- smoothDensityOM %>% mutate(meanOM=MeanOM/sample_density)
-smoothDensityWGSOM <- st_transform(smoothDensityMeanOM, 4326)
+smoothDensityMapOM <- st_transform(smoothDensityMeanOM, 4326)
 
-ggplot(data=smoothDensityWGSOM)+
+om<-ggplot(data=smoothDensityMapOM)+
   geom_sf(aes(fill=meanOM), color=NA)+
   scale_fill_viridis_c(option = "inferno", name = "Organic Matter")+
   theme_minimal() +
+  labs(
+    title = " Organic Matter"
+  ) +
   theme(
     panel.grid.major = element_line(color = "grey50", linetype = "dashed"),
     legend.position = "bottom",
@@ -210,13 +213,15 @@ ptsDensitySM$sample_density <- 1L
 
 smoothDensitySM <- btb_smooth(pts = ptsDensitySM,sEPSG = 32610,
                               iBandwidth = 450,iCellSize = 10)
-
 smoothDensityMeanSM <- smoothDensitySM %>% mutate(meanSM=MeanSM/sample_density)
-smoothDensityWGSSM <- st_transform(smoothDensityMeanSM, 4326)
+smoothDensityMapSM <- st_transform(smoothDensityMeanSM, 4326)
 
-ggplot(data=smoothDensityWGSSM)+
-  geom_sf(aes(fill=MeanSM), color=NA)+
+sm<-ggplot(data=smoothDensityMapSM)+
+  geom_sf(aes(fill=meanSM), color=NA)+
   scale_fill_viridis_c(option = "inferno", name = "Soil Moisture")+
+  labs(
+    title = " Soil Moisture"
+  ) +
   theme_minimal() +
   theme(
     panel.grid.major = element_line(color = "grey50", linetype = "dashed"),
@@ -233,13 +238,15 @@ ptsDensityPH$sample_density <- 1L
 
 smoothDensityPH <- btb_smooth(pts = ptsDensityPH,sEPSG = 32610,
                               iBandwidth = 450,iCellSize = 10)
-
 smoothDensityMeanPH <- smoothDensityPH %>% mutate(meanPH=MeanPH/sample_density)
-smoothDensityWGSPH <- st_transform(smoothDensityMeanPH, 4326)
+smoothDensityMapPH <- st_transform(smoothDensityMeanPH, 4326)
 
-ggplot(data=smoothDensityWGSPH)+
+ph<-ggplot(data=smoothDensityMapPH)+
   geom_sf(aes(fill=meanPH), color=NA)+
   scale_fill_viridis_c(option = "inferno", name = "pH Levels")+
+  labs(
+    title = "pH Levels"
+  ) +
   theme_minimal() +
   theme(
     panel.grid.major = element_line(color = "grey50", linetype = "dashed"),
@@ -255,14 +262,16 @@ ptsDensityEC$sample_density <- 1L
 
 smoothDensityEC <- btb_smooth(pts = ptsDensityEC,sEPSG = 32610,
                               iBandwidth = 450,iCellSize = 10)
-
 smoothDensityMeanEC <- smoothDensityEC %>% mutate(meanEC=MeanEC/sample_density)
-smoothDensityWGSEC <- st_transform(smoothDensityMeanEC, 4326)
+smoothDensityMapEC <- st_transform(smoothDensityMeanEC, 4326)
 
-ggplot(data=smoothDensityWGSEC)+
+ec<-ggplot(data=smoothDensityMapEC)+
   geom_sf(aes(fill=meanEC), color=NA)+
   scale_fill_viridis_c(option = "inferno", name = "Electric Conductivity")+
   theme_minimal() +
+  labs(
+    title = "Electric Conductivity"
+  ) +
   theme(
     panel.grid.major = element_line(color = "grey50", linetype = "dashed"),
     legend.position = "bottom",
@@ -277,18 +286,20 @@ ptsDensityMol$sample_density <- 1L
 
 smoothDensityMol <- btb_smooth(pts = ptsDensityMol,sEPSG = 32610,
                                iBandwidth = 450,iCellSize = 10)
-
 smoothDensityMeanMol <- smoothDensityMol %>% mutate(meanMol=MeanMollusks/sample_density)
-smoothDensityWGSMol <- st_transform(smoothDensityMeanMol, 4326)
+smoothDensityMapMol <- st_transform(smoothDensityMeanMol, 4326)
 
-mf_map(x = smoothDensityWGSMol,type = "choro",var="meanMol",breaks = "quantile",
-       nbreaks = 5,border = NA,leg_val_rnd = 1,leg_horiz=TRUE)
-
-mf_graticule(x = smoothDensityWGSMol, add = TRUE, col = "grey0", lty = 2,pos = c("bottom", "left"))
-
-mf_layout(title = "Smoothed Mollusks Density", 
-          credits = "Source: dataWet",
-          arrow = FALSE)
+mol<-ggplot(data=smoothDensityMapMol)+
+  geom_sf(aes(fill=meanMol), color=NA)+
+  scale_fill_viridis_c(option = "inferno", name = "Mollusks")+
+  theme_minimal() +
+  labs(
+    title = "Mollusks"
+  ) +
+  theme(
+    panel.grid.major = element_line(color = "grey50", linetype = "dashed"),
+    legend.position = "bottom",
+    axis.text.x = element_text(angle = 45, hjust = 1))
 ###################### Canopy COver
 ptsDensityCanopy <- dataWetSFM %>%
   st_drop_geometry() %>%
@@ -299,17 +310,20 @@ ptsDensityCanopy$sample_density <- 1L
 
 smoothDensityCanopy <- btb_smooth(pts = ptsDensityCanopy, sEPSG = 32610, 
                                   iBandwidth = 450, iCellSize = 10)
-
 smoothDensityMeanCanopy <- smoothDensityCanopy %>% mutate(meanCanopy = meanCanopy / sample_density)
-smoothDensityWGSCanopy <- st_transform(smoothDensityMeanCanopy, 4326)
+smoothDensityMapCanopy <- st_transform(smoothDensityMeanCanopy, 4326)
 
-mf_map(x = smoothDensityWGSCanopy, type = "choro", var="meanCanopy", breaks = "quantile",
-       nbreaks = 5, border = NA, leg_val_rnd = 1, leg_horiz=TRUE)
-
-mf_graticule(x = smoothDensityWGSCanopy, add = TRUE, col = "grey0", lty = 2, pos = c("bottom", "left"))
-
-mf_layout(title = "Smoothed Canopy Cover Density", 
-          credits = "Source: dataWet", arrow = FALSE)
+cc<-ggplot(data=smoothDensityMapCanopy)+
+  geom_sf(aes(fill=meanCanopy), color=NA)+
+  scale_fill_viridis_c(option = "inferno", name = "Canopy Cover")+
+  theme_minimal() +
+  labs(
+    title = "Canopy Cover"
+  ) +
+  theme(
+    panel.grid.major = element_line(color = "grey50", linetype = "dashed"),
+    legend.position = "bottom",
+    axis.text.x = element_text(angle = 45, hjust = 1))
 ######### Slope 
 ptsDensitySlope <- dataWetSFM %>%
   st_drop_geometry() %>%
@@ -320,16 +334,14 @@ ptsDensitySlope$sample_density <- 1L
 
 smoothDensitySlope <- btb_smooth(pts = ptsDensitySlope, sEPSG = 32610, 
                                  iBandwidth = 450, iCellSize = 10)
-
 smoothDensityMeanSlope <- smoothDensitySlope %>% mutate(meanSlope = meanSlope / sample_density)
-smoothDensityWGSSlope <- st_transform(smoothDensityMeanSlope, 4326)
+smoothDensityMapSlope <- st_transform(smoothDensityMeanSlope, 4326)
 
-ggplot(data=smoothDensityWGSSlope)+
+slp<-ggplot(data=smoothDensityMapSlope)+
   geom_sf(aes(fill=meanSlope), color=NA)+
   scale_fill_viridis_c(option = "inferno", name = "Slope")+
   labs(
-    title = "Smoothed Slope Density",
-    caption = "Source: dataWet"
+    title = " Slope"
   ) +
   theme_minimal() +
   theme(
@@ -337,17 +349,17 @@ ggplot(data=smoothDensityWGSSlope)+
     legend.position = "bottom",
     axis.text.x = element_text(angle = 45, hjust = 1))
 
-mf_map(x = smoothDensityWGSSlope, type = "choro", var="meanSlope", breaks = "quantile",
-       nbreaks = 5, border = NA, leg_val_rnd = 1, leg_horiz=TRUE)
-
-mf_graticule(x = smoothDensityWGSSlope, add = TRUE, col = "grey0", lty = 2, pos = c("bottom", "left"))
-
-mf_layout(title = "Smoothed Slope Density", 
-          credits = "Source: dataWet", arrow = FALSE)
-
-#####
-par(mfrow = c(1, 1))
-
+##############
+densityPlotSM<-(fd| om | sm | slp) / (ph| ec | cc |mol) & 
+  theme(legend.position = "bottom",
+        legend.text = element_text(angle = 45, hjust = 1))& 
+  guides(
+    fill = guide_colorbar(
+      title.position = "top", 
+      title.hjust = 0.5        
+    )
+  )
+print(densityPlotSM)
 
 ##################################################################################################
 #########################  MODELING AND TESTING  #################################################
@@ -387,8 +399,8 @@ validateModelLM <- function(model) {
 
 validateModelLMER<- function(model) {
   # Check for multicollinearity
-  print("Variance Inflation Factors:")
-  print(vif(model))
+  #print("Variance Inflation Factors:")
+  #print(vif(model))
   
   #confidence intervals
   print("Confidence Intervals:")
@@ -412,84 +424,51 @@ validateModelLMER<- function(model) {
 
 ##################################################################################################
 ################  Wet Season Models w/soil sample ###################### 
+dataWet$"Soil sample" <- as.factor(dataWet$"Soil sample")
 
-modWetSM<- lmer(`% SM`~`Soil sample`+`% OM`+pH+EC+`Fern Density`+(1|`Point #`), data=dataWet)
-summary(modWetSM)
-modWetOM<- lmer(`% OM`~`Soil sample`+`% SM`+pH+EC+`Fern Density`+(1|`Point #`), data=dataWet)
-summary(modWetOM)
-modWetPH<- lmer(pH~`Soil sample`+`% SM`+`% OM`+EC+(1|`Point #`), data=dataWet)
-summary(modWetPH)
-modWetFern<- lm(`Fern Density`~`Soil sample`+`% SM`+`% OM`+pH+EC, data=dataWet)
-summary(modWetFern)
-
-#Validation testing
-validateModelLMER(modWetSM)
-validateModelLMER(modWetOM)
-validateModelLMER(modWetPH)
-validateModelLM(modWetFern)
-
-#confint plots
-plot_model(modWetSM,show.values = TRUE, value.offset = .3, title = "Predictors of Soil Moisture (Wet Season)")
-plot_model(modWetOM, show.values = TRUE, value.offset = .3, title = "Predictors of Organic Matter (Wet Season)")
-
-#pairwise comparisons of soil sample types with emmeans
-emmeans(modWetSM, pairwise ~ `Soil sample`)
-emmeans(modWetOM, pairwise ~ `Soil sample`)
-emmeans(modWetPH, pairwise ~ `Soil sample`)
-#simple models wet
 modWetSimpleSM<-lmer(`% SM`~`Soil sample`+(1|`Point #`), data=dataWet)
 summary(modWetSimpleSM)
-meansWetOM<-emmeans(modWetSimpleSM, pairwise ~ `Soil sample`)
-summary(meansWetOM)
-plot(meansWetOM, title = "Soil Moisture by Soil Sample (Wet Season)")+
-  geom_vline(xintercept = 4.05, color = "red", linetype = "dashed", size = 1)
+meansWetSM<-emmeans(modWetSimpleSM, pairwise ~ `Soil sample`)
+summary(meansWetSM)
+pwpp(meansWetSM)+(title = "Pairwise Comparisons of Soil Moisture by Soil Sample (Wet Season)")
+validateModelLMER(modWetSimpleSM)
 
 modWetSimpleOM<-lmer(`% OM`~`Soil sample`+(1|`Point #`), data=dataWet)
 summary(modWetSimpleOM)
-emmeans(modWetSimpleOM, pairwise ~ `Soil sample`)
+meansWetOM<-emmeans(modWetSimpleOM, pairwise ~ `Soil sample`)
+summary(meansWetOM)
+pwpp(meansWetOM)+(title = "Pairwise Comparisons of Organic Matter by Soil Sample (Wet Season)")
+validateModelLMER(modWetSimpleOM)
 
 modWetSimpleFern<-lm(`Fern Density`~`Soil sample`, data=dataWet)
 summary(modWetSimpleFern)
-emmeans(modWetSimpleFern, pairwise ~ `Soil sample`)
+meansWetFern<-emmeans(modWetSimpleFern, pairwise ~ `Soil sample`)
+summary(meansWetFern)
+pwpp(meansWetFern)+(title = "Pairwise Comparisons of Fern Density by Soil Sample (Wet Season)")
+validateModelLM(modWetSimpleFern)
 
 modWetSimplePH<-lmer(pH~`Soil sample`+(1|`Point #`), data=dataWet)
 summary(modWetSimplePH)
-emmeans(modWetSimplePH, pairwise ~ `Soil sample`)
+meansWetPH<-emmeans(modWetSimplePH, pairwise ~ `Soil sample`)
+summary(meansWetPH)
+pwpp(meansWetPH)+(title = "Pairwise Comparisons of pH by Soil Sample (Wet Season)")
+validateModelLMER(modWetSimplePH)
 
 modWetSimpleEC<-lmer(EC~`Soil sample`+(1|`Point #`), data=dataWet)
 summary(modWetSimpleEC)
-emmeans(modWetSimpleEC, pairwise ~ `Soil sample`)
+meansWetEC<-emmeans(modWetSimpleEC, pairwise ~ `Soil sample`)
+summary(meansWetEC)
+pwpp(meansWetEC)+(title = "Pairwise Comparisons of Electric Conductivity by Soil Sample (Wet Season)")
+validateModelLMER(modWetSimpleEC)
 ##################################################################################################
 ################################ Mollusks models that exclude base #################################################
 dataWetMollusk <- dataWet |>
   filter(`Soil sample` %in% c("Edge", "Veg", "Non-veg"))
-modWetMollusk1<- lmer(`% SM`~`Soil sample`+`% OM`+pH+EC+`# mollusks`+(1|`Point #`), data=dataWetMollusk)
-summary(modWetMollusk1)
-modWetMollusk2<- lmer(`% OM`~`Soil sample`+`% SM`+pH+EC+`# mollusks`+(1|`Point #`), data=dataWetMollusk)
-summary(modWetMollusk2)
-modWetMollusks3<-lmer(`# mollusks`~`Soil sample`+`% SM`+`% OM`+pH+EC+(1|`Point #`), data=dataWetMollusk)
-summary(modWetMollusks3)
 
-modWetSimpleMollusks<-lmer(`# mollusks`~`Soil sample`+(1|`Point #`), data=dataWetMollusk)
-summary(modWetSimpleMollusks)
-emmeans(modWetSimpleMollusks, pairwise ~ `Soil sample`)
-
-##################################################################################################
-################## Wet Season models w/ fern presence #####################
-modWetSMFern<- lmer(`% SM`~FernPresence+`% OM`+pH+EC+(1|`Point #`), data=dataWet)
-summary(modWetSMFern)
-modWetOMFern<- lmer(`% OM`~FernPresence+`% SM`+pH+EC+(1|`Point #`), data=dataWet)
-summary(modWetOMFern)
-modWetFernFern<- lm(`Fern Density`~`% SM`+`% OM`+pH+EC, data=dataWet)
-summary(modWetFernFern)
-
-#validation testing
-validateModelLMER(modWetSMFern)
-validateModelLMER(modWetOMFern)
-validateModelLM(modWetFernFern)
-
-#confint plots
-plot_model(modWetSMFern,show.values = TRUE, value.offset = .3, title = "Predictors of Soil Moisture (Wet Season, Fern Presence)")
-plot_model(modWetOMFern, show.values = TRUE, value.offset = .3, title = "Predictors of Organic Matter (Wet Season, Fern Presence)")
-plot_model(modWetFernFern, show.values = TRUE, value.offset = .3, title = "Predictors of Fern Density (Wet Season, Fern Presence)")
+modWetMollusks<-lmer(`# mollusks`~`Soil sample`+(1|`Point #`), data=dataWetMollusk)
+summary(modWetMollusks)
+meansWetMollusks<-emmeans(modWetMollusks, pairwise ~ `Soil sample`)
+summary(meansWetMollusks)
+pwpp(meansWetMollusks, title = "Pairwise Comparisons of Mollusk Counts by Soil Sample (Wet Season, Excluding Base)")
+validateModelLMER(modWetMollusks)
 

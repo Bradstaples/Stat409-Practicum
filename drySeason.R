@@ -10,6 +10,7 @@ library(sf)
 library(btb)
 library(lme4)
 library(lmerTest)
+library(patchwork)
 ##################################################################################################
 drySoil<-read.csv("DrySeasonRandomSoil_2025-1.csv", check.names = FALSE)
 drySeason<-read.csv("DrySeasonRandomHab_2025-1.csv", skip=1, check.names = FALSE)
@@ -108,11 +109,11 @@ dataDry|>
   ggplot(aes(x= `% OM`, y= Values, color=`Soil sample`))+
   geom_point()+geom_smooth(method="lm", se=F)+facet_wrap(~Variable, scales="free_y", ncol=1)
 #everything vs EC
-dataDry|>
-  select(`Point #`, `Soil sample`, `EC`, pH, `% OM`, `% SM`) |>
-  pivot_longer(cols=c(pH, `% OM`, `% SM`), names_to = "Variable", values_to = "Values") |>
-  ggplot(aes(x= `EC`, y= Values, color=`Soil sample`))+
-  geom_point()+geom_smooth(method="lm", se=F)+facet_wrap(~Variable, scales="free_y", ncol=1)
+#dataDry|>
+#  select(`Point #`, `Soil sample`, `EC`, pH, `% OM`, `% SM`) |>
+#  pivot_longer(cols=c(pH, `% OM`, `% SM`), names_to = "Variable", values_to = "Values") |>
+#  ggplot(aes(x= `EC`, y= Values, color=`Soil sample`))+
+#  geom_point()+geom_smooth(method="lm", se=F)+facet_wrap(~Variable, scales="free_y", ncol=1)
 #everything vs pH
 dataDry|>
   select(`Point #`, `Soil sample`, `pH`, EC, `% OM`, `% SM`) |>
@@ -158,7 +159,7 @@ smoothDensityOM <- btb_smooth(pts = ptsDensityOM, sEPSG = 32610, iBandwidth = 45
 smoothDensityMeanOM <- smoothDensityOM %>% mutate(meanOM = MeanOM / sample_density)
 smoothDensityMapOM <- st_transform(smoothDensityMeanOM, 4326)
 
-ggplot(data=smoothDensityMapOM)+
+om<-ggplot(data=smoothDensityMapOM)+
   geom_sf(aes(fill=meanOM), color=NA)+
   scale_fill_viridis_c(option = "inferno", name = "Organic Matter")+
   theme_minimal() +
@@ -180,9 +181,9 @@ smoothDensitySM <- btb_smooth(pts = ptsDensitySM, sEPSG = 32610, iBandwidth = 45
 smoothDensityMeanSM <- smoothDensitySM %>% mutate(meanSM = MeanSM / sample_density)
 smoothDensityMapSM <- st_transform(smoothDensityMeanSM, 4326)
 
-ggplot(data=smoothDensityMapSM)+
-  geom_sf(aes(fill=MeanSM), color=NA)+
-  scale_fill_viridis_c(option = "inferno", name = "Organic Matter")+
+sm<-ggplot(data=smoothDensityMapSM)+
+  geom_sf(aes(fill=meanSM), color=NA)+
+  scale_fill_viridis_c(option = "inferno", name = "Soil Moisture")+
   theme_minimal() +
   theme(
     panel.grid.major = element_line(color = "grey50", linetype = "dashed"),
@@ -200,9 +201,9 @@ smoothDensityPH <- btb_smooth(pts = ptsDensityPH, sEPSG = 32610, iBandwidth = 45
 smoothDensityMeanPH <- smoothDensityPH %>% mutate(meanPH = MeanPH / sample_density)
 smoothDensityMapPH <- st_transform(smoothDensityMeanPH, 4326)
 
-ggplot(data=smoothDensityMapPH)+
-  geom_sf(aes(fill=MeanPH), color=NA)+
-  scale_fill_viridis_c(option = "inferno", name = "Organic Matter")+
+ph<-ggplot(data=smoothDensityMapPH)+
+  geom_sf(aes(fill=meanPH), color=NA)+
+  scale_fill_viridis_c(option = "inferno", name = "ph Levels")+
   theme_minimal() +
   theme(
     panel.grid.major = element_line(color = "grey50", linetype = "dashed"),
@@ -220,9 +221,9 @@ smoothDensityEC <- btb_smooth(pts = ptsDensityEC, sEPSG = 32610, iBandwidth = 45
 smoothDensityMeanEC <- smoothDensityEC %>% mutate(meanEC = MeanEC / sample_density)
 smoothDensityMapEC <- st_transform(smoothDensityMeanEC, 4326)
 
-ggplot(data=smoothDensityMapEC)+
-  geom_sf(aes(fill=MeanEC), color=NA)+
-  scale_fill_viridis_c(option = "inferno", name = "Organic Matter")+
+ec<-ggplot(data=smoothDensityMapEC)+
+  geom_sf(aes(fill=meanEC), color=NA)+
+  scale_fill_viridis_c(option = "inferno", name = "Electric Conductivity")+
   theme_minimal() +
   theme(
     panel.grid.major = element_line(color = "grey50", linetype = "dashed"),
@@ -241,14 +242,21 @@ smoothDensityCanopy <- btb_smooth(pts = ptsDensityCanopy, sEPSG = 32610, iBandwi
 smoothDensityMeanCanopy <- smoothDensityCanopy %>% mutate(meanCanopy = MeanCanopy / sample_density)
 smoothDensityMapCanopy <- st_transform(smoothDensityMeanCanopy, 4326)
 
-ggplot(data=smoothDensityMapCanopy)+
+
+cc<-ggplot(data=smoothDensityMapCanopy)+
   geom_sf(aes(fill=meanCanopy), color=NA)+
-  scale_fill_viridis_c(option = "inferno", name = "Organic Matter")+
+  scale_fill_viridis_c(option = "inferno", name = "Canopy Cover")+
   theme_minimal() +
   theme(
     panel.grid.major = element_line(color = "grey50", linetype = "dashed"),
     legend.position = "bottom",
     axis.text.x = element_text(angle = 45, hjust = 1))
+
+#combined plot creation
+densityPlotSM<-(om | sm | ph)/ ( ec | cc) & 
+  theme(legend.position = "bottom",
+        legend.text = element_text(angle = 45, hjust = 1))
+print(densityPlotSM)
 
 #################################################################################################
 #########################  MODELING AND TESTING  #################################################
@@ -314,24 +322,30 @@ validateModelLMER<- function(model) {
 
 ##################################################################################################
 ############## Dry Season Models ####################### 
-modDrySM<- lmer(`% SM`~`Soil sample`+`% OM`+pH+EC+`# mollusks`+(1|`Point #`), data=dataDry)
-summary(modDrySM)
-modDryOM<- lmer(`% OM`~`Soil sample`+`% SM`+pH+EC+`# mollusks`+(1|`Point #`), data=dataDry)
-summary(modDryOM)
-
-#simple models dry
 modDrySimpleSM<-lmer(`% SM`~`Soil sample`+(1|`Point #`), data=dataDry)
 summary(modDrySimpleSM)
-emmeans(modDrySimpleSM, pairwise ~ `Soil sample`)
+meansDrySM<-emmeans(modDrySimpleSM, pairwise ~ `Soil sample`)
+summary(modDrySimpleSM)
+pwpp(meansDrySM)+labs(title ="Pairwise Comparisons of Soil Moisture by Soil Sample (Dry Season)")+
+  theme(plot.title = element_text(size = 12, face = "bold"))
 
 modDrySimpleOM<-lmer(`% OM`~`Soil sample`+(1|`Point #`), data=dataDry)
 summary(modDrySimpleOM)
-emmeans(modDrySimpleOM, pairwise ~ `Soil sample`)
+meansDryOM<-emmeans(modDrySimpleOM, pairwise ~ `Soil sample`)
+summary(modDrySimpleOM)
+pwpp(meansDryOM)+ labs(title="Pairwise Comparisons of Organic Matter by Soil Sample (Dry Season)")+
+  theme(plot.title = element_text(size = 12, face = "bold"))
 
 modDrySimplePH<-lmer(pH~`Soil sample`+(1|`Point #`), data=dataDry)
 summary(modDrySimplePH)
-emmeans(modDrySimplePH, pairwise ~ `Soil sample`)
+meansDryPH<-emmeans(modDrySimplePH, pairwise ~ `Soil sample`)
+summary(modDrySimplePH)
+pwpp(meansDryPH)+ labs(title="Pairwise Comparisons of pH by Soil Sample (Dry Season)")+
+  theme(plot.title = element_text(size = 12, face = "bold"))
 
 modDrySimpleEC<-lmer(EC~`Soil sample`+(1|`Point #`), data=dataDry)
 summary(modDrySimpleEC)
-emmeans(modDrySimpleEC, pairwise ~ `Soil sample`)
+meansDry<-emmeans(modDrySimpleEC, pairwise ~ `Soil sample`)
+summary(modDrySimpleEC)
+pwpp(meansDry)+ labs(title="Pairwise Comparisons of EC by Soil Sample (Dry Season)")+
+  theme(plot.title = element_text(size = 12, face = "bold"))
